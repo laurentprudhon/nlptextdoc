@@ -71,12 +71,12 @@ namespace nlptextdoc.extract.html
             config.MaxRetryCount = 0;
             config.MinRetryDelayInMilliseconds = 0;
 
-            config.IsRespectRobotsDotTextEnabled = false;
-            config.IsRespectMetaRobotsNoFollowEnabled = false;
-            config.IsRespectHttpXRobotsTagHeaderNoFollowEnabled = false;
-            config.IsRespectAnchorRelNoFollowEnabled = false;
+            config.IsRespectRobotsDotTextEnabled = true;
+            config.IsRespectMetaRobotsNoFollowEnabled = true;
+            config.IsRespectHttpXRobotsTagHeaderNoFollowEnabled = true;
+            config.IsRespectAnchorRelNoFollowEnabled = true;
             config.IsIgnoreRobotsDotTextIfRootDisallowedEnabled = false;
-            config.RobotsDotTextUserAgentString = "abot";
+            config.RobotsDotTextUserAgentString = "bingbot";
             config.MinCrawlDelayPerDomainMilliSeconds = minCrawlDelay;
             config.MaxRobotsDotTextCrawlDelayInSeconds = 5;
 
@@ -235,54 +235,62 @@ namespace nlptextdoc.extract.html
 
         private void LogRequest(CrawledPage crawledPage)
         {
-            logWriter.Write(crawledPage.RequestStarted.ToString("HH:mm:ss.fff"));
-            logWriter.Write(";");
-            logWriter.Write(crawledPage.Uri.AbsoluteUri);
-            logWriter.Write(";");
-            logWriter.Write(crawledPage.HttpWebResponse.StatusCode);
-            logWriter.Write(";");
-            logWriter.Write((int)crawledPage.Elapsed);
-            if(crawledPage.DownloadContentCompleted.HasValue)
+            lock (logWriter)
             {
+                logWriter.Write(crawledPage.RequestStarted.ToString("HH:mm:ss.fff"));
                 logWriter.Write(";");
-                logWriter.Write((int)(crawledPage.DownloadContentCompleted.Value - crawledPage.DownloadContentStarted.Value).TotalMilliseconds);
+                logWriter.Write(crawledPage.Uri.AbsoluteUri);
                 logWriter.Write(";");
-                logWriter.Write(crawledPage.Content.Bytes.Length);
+                logWriter.Write(crawledPage.HttpWebResponse.StatusCode);
+                logWriter.Write(";");
+                logWriter.Write((int)crawledPage.Elapsed);
+                if (crawledPage.DownloadContentCompleted.HasValue)
+                {
+                    logWriter.Write(";");
+                    logWriter.Write((int)(crawledPage.DownloadContentCompleted.Value - crawledPage.DownloadContentStarted.Value).TotalMilliseconds);
+                    logWriter.Write(";");
+                    logWriter.Write(crawledPage.Content.Bytes.Length);
+                }
+                else
+                {
+                    logWriter.Write(";");
+                    logWriter.Write(";");
+                }
+                logWriter.Write(";");
+                logWriter.Write(crawledPage.CrawlDepth);
+                logWriter.Write(";");
+                logWriter.Write(crawledPage.ParentUri != null ? crawledPage.ParentUri.AbsoluteUri : "");
+                logWriter.Write(";");
+                logWriter.Write(crawledPage.RedirectedFrom != null ? crawledPage.RedirectedFrom.Uri.AbsoluteUri : "");
+                if (crawledPage.IsRetry)
+                {
+                    logWriter.Write(";");
+                    logWriter.Write(crawledPage.RetryCount);
+                    logWriter.Write(";");
+                    logWriter.Write(crawledPage.RetryAfter.Value);
+                }
+                else
+                {
+                    logWriter.Write(";");
+                    logWriter.Write(";");
+                }
+                if (crawledPage.WebException != null)
+                {
+                    logWriter.Write(";");
+                    logWriter.Write(ToCsvSafeString(crawledPage.WebException.Message));
+                }
+                else
+                {
+                    logWriter.Write(";");
+                }
+                logWriter.WriteLine();
+                logWriter.Flush();
             }
-            else
-            {
-                logWriter.Write(";");
-                logWriter.Write(";");
-            }
-            logWriter.Write(";");
-            logWriter.Write(crawledPage.CrawlDepth);
-            logWriter.Write(";");
-            logWriter.Write(crawledPage.ParentUri != null ? crawledPage.ParentUri.AbsoluteUri : "");
-            logWriter.Write(";");
-            logWriter.Write(crawledPage.RedirectedFrom != null ? crawledPage.RedirectedFrom.Uri.AbsoluteUri : "");
-            if (crawledPage.IsRetry)
-            {
-                logWriter.Write(";");
-                logWriter.Write(crawledPage.RetryCount);
-                logWriter.Write(";");
-                logWriter.Write(crawledPage.RetryAfter.Value);
-            }
-            else
-            {
-                logWriter.Write(";");
-                logWriter.Write(";");
-            }
-            if (crawledPage.WebException != null)
-            {
-                logWriter.Write(";");
-                logWriter.Write(crawledPage.WebException.Message);
-            }
-            else
-            {
-                logWriter.Write(";");
-            }            
-            logWriter.WriteLine();
-            logWriter.Flush();
+        }
+
+        private static string ToCsvSafeString(string message)
+        {
+            return message.Replace(';', ',').Replace('\n', ' ');
         }
 
         public void Dispose()
