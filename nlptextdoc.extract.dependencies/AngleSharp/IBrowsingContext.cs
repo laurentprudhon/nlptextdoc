@@ -43,7 +43,7 @@
         /// <summary>
         /// Cache the network responses during a session
         /// </summary>
-        Dictionary<string,IResponse> ResponseCache { get; }
+        IDictionary<string,IResponse> ResponseCache { get; }
 
         /// <summary>
         /// Gets the parent of the current context, if any. If a parent is

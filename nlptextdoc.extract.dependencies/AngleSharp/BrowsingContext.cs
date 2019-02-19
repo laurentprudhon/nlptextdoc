@@ -5,6 +5,7 @@
     using AngleSharp.Html;
     using AngleSharp.Network;
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
 
     /// <summary>
@@ -19,7 +20,7 @@
         readonly IBrowsingContext _parent;
         readonly IDocument _creator;
         readonly IDocumentLoader _loader;
-        Dictionary<string, IResponse> _responseCache;
+        IDictionary<string, IResponse> _responseCache;
         readonly IHistory _history;
 
         #endregion
@@ -96,7 +97,7 @@
             get { return _loader; }
         }
 
-        public Dictionary<string, IResponse> ResponseCache
+        public IDictionary<string, IResponse> ResponseCache
         {
             get
             {
@@ -108,7 +109,7 @@
                 {
                     if (_responseCache == null)
                     {
-                        _responseCache = new Dictionary<string, IResponse>();
+                        _responseCache = new ConcurrentDictionary<string, IResponse>();
                     }
                     return _responseCache;
                 }

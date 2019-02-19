@@ -140,17 +140,20 @@ namespace nlptextdoc.extract.html
         {
             // Add the page already downloaded by Abot in the document cache
             var htmlDocumentUri = crawledPage.HttpWebResponse.ResponseUri;
-            var response = VirtualResponse.Create(r =>
+            if (!context.ResponseCache.ContainsKey(htmlDocumentUri.AbsoluteUri))
             {
-                r.Address(new Url(htmlDocumentUri.AbsoluteUri))
-                    .Status(crawledPage.HttpWebResponse.StatusCode)
-                    .Content(crawledPage.Content.Text, crawledPage.Content.Charset);
-                foreach (var header in crawledPage.HttpWebResponse.Headers.AllKeys)
+                var response = VirtualResponse.Create(r =>
                 {
-                    r.Header(header, crawledPage.HttpWebResponse.Headers[header]);
-                }
-            });
-            context.ResponseCache.Add(htmlDocumentUri.AbsoluteUri, response);
+                    r.Address(new Url(htmlDocumentUri.AbsoluteUri))
+                        .Status(crawledPage.HttpWebResponse.StatusCode)
+                        .Content(crawledPage.Content.Text, crawledPage.Content.Charset);
+                    foreach (var header in crawledPage.HttpWebResponse.Headers.AllKeys)
+                    {
+                        r.Header(header, crawledPage.HttpWebResponse.Headers[header]);
+                    }
+                });
+                context.ResponseCache.Add(htmlDocumentUri.AbsoluteUri, response);
+            }
 
             // Parse the page and its Css dependencies whith Anglesharp
             // in the right context, initialized in the constructor

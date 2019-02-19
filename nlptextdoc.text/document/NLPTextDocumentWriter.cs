@@ -42,7 +42,14 @@ namespace nlptextdoc.text.document
             writer.Write(NLPTextDocumentFormat.TEXT_DOCUMENT_PROPERTY_PREFIX);
             writer.Write(propertyName);
             writer.Write(' ');
-            WriteTextBlock(writer, propertyValue);
+            if (!String.IsNullOrEmpty(propertyValue))
+            {
+                WriteTextBlock(writer, propertyValue);
+            }
+            else
+            {
+                writer.WriteLine();
+            }
         }
 
         private static void WriteDocumentElements(StreamWriter writer, IEnumerable<DocumentElement> elements)
