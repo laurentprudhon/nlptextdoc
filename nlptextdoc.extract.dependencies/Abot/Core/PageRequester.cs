@@ -84,13 +84,36 @@ namespace Abot.Core
             }
             catch (WebException e)
             {
-                crawledPage.WebException = e;
+                // Try to patch redirect error
+                bool fixedRedirectError = false;
+                if (e.Response != null && e.Response.ResponseUri != null)
+                {
+                    string responseUri = e.Response.ResponseUri.AbsoluteUri;
+                    if (responseUri.Contains("#"))
+                    {
+                        try
+                        {
+                            var fixedUri = new Uri(responseUri.Substring(0, responseUri.IndexOf('#')));
+                            request = BuildRequestObject(fixedUri);
+                            crawledPage.RequestStarted = DateTime.Now;
+                            response = (HttpWebResponse)request.GetResponse();
+                            ProcessResponseObject(response);
+                            fixedRedirectError = true;
+                        }
+                        catch { /* Failed again => stay on the first error */ }
+                    }
+                }
 
-                if (e.Response != null)
-                    response = (HttpWebResponse)e.Response;
+                if (!fixedRedirectError)
+                {
+                    crawledPage.WebException = e;
 
-                _logger.DebugFormat("Error occurred requesting url [{0}]", uri.AbsoluteUri);
-                _logger.Debug(e);
+                    if (e.Response != null)
+                        response = (HttpWebResponse)e.Response;
+
+                    _logger.DebugFormat("Error occurred requesting url [{0}]", uri.AbsoluteUri);
+                    _logger.Debug(e);
+                }
             }
             catch (Exception e)
             {
