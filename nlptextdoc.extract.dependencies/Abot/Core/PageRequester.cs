@@ -89,11 +89,19 @@ namespace Abot.Core
                 if (e.Response != null && e.Response.ResponseUri != null)
                 {
                     string responseUri = e.Response.ResponseUri.AbsoluteUri;
+                    Uri fixedUri = null;
                     if (responseUri.Contains("#"))
                     {
+                        fixedUri = new Uri(responseUri.Substring(0, responseUri.IndexOf('#')));
+                    }
+                    else if(responseUri.EndsWith("%20"))
+                    {
+                        fixedUri = new Uri(e.Response.ResponseUri.ToString().Trim());
+                    }
+                    if(fixedUri != null)
+                    {
                         try
-                        {
-                            var fixedUri = new Uri(responseUri.Substring(0, responseUri.IndexOf('#')));
+                        {                            
                             request = BuildRequestObject(fixedUri);
                             crawledPage.RequestStarted = DateTime.Now;
                             response = (HttpWebResponse)request.GetResponse();
