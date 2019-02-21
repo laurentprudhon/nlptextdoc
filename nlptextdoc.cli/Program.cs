@@ -23,16 +23,14 @@ namespace nlptextdoc.cli
             Console.WriteLine("Usage : nlptextdoc [rootUrl] [storageDirectory] [maxPagesCount=0] [minCrawlDelay=0]");
             Console.WriteLine(" - rootUrl          : root Url of the website (or subfolder of a website) you want to crawl");
             Console.WriteLine(" - storageDirectory : path to the disk directory where the website folder");
-            Console.WriteLine(" - maxPagesCount    : maximum number of pages extracted from the website");
-            Console.WriteLine(" - minCrawlDelay    : delay in milliseconds between two requests sent to the website");
+            Console.WriteLine(" - maxPagesCount    : maximum number of pages extracted from the website (optional, default:100 000)");
+            Console.WriteLine(" - minCrawlDelay    : delay in milliseconds between two requests sent to the website (optional, default:100ms)");
             Console.WriteLine();
             Console.WriteLine("Recommended process :");
-            Console.WriteLine("1. Run the the tool for the first time with a low maxPagesCount (for example 100) and no crawl delay");
+            Console.WriteLine("1. Run the the tool for the first time with a low maxPagesCount (for example 500) and no crawl delay");
             Console.WriteLine("2. Open the log file \"httprequests.log.csv\" (created at the root of the website directory) in a spreadsheet");
             Console.WriteLine("3. Check for Http \"Forbidden\" answers, and test if the url is accessible when tested from a browser");
             Console.WriteLine("4. Try again with a non null minCrawlDelay, and continue to inscrease it until \"Forbidden\" errors disappear");
-            Console.WriteLine("5. Run the the tool with an intermediate maxPagesCount (for example 500) and an adequate crawl delay");
-            Console.WriteLine("6. Look at the extracted pages and search for Urls that you would like to exclude");
             Console.WriteLine();
         }
 
@@ -48,13 +46,13 @@ namespace nlptextdoc.cli
 
                 var storagePath = args[1];
 
-                int maxPagesCount = 0;
+                int maxPagesCount = 100000;
                 if (args.Length > 2)
                 {
                     maxPagesCount = Int32.Parse(args[2]);
                 }
 
-                int minCrawlDelay = 0;
+                int minCrawlDelay = 100;
                 if (args.Length > 3)
                 {
                     minCrawlDelay = Int32.Parse(args[3]);

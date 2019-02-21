@@ -2,7 +2,7 @@
   "profiles": {
     "nlptextdoc.cli": {
       "commandName": "Project",
-      "commandLineArgs": "http://www.cbanque.com C:\\Users\\laure\\Desktop\\ 100 2000"
+      "commandLineArgs": "https://www.cbanque.com C:\\Users\\laure\\Desktop\\"
     }
   }
 }

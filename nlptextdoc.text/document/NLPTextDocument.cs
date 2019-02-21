@@ -53,5 +53,45 @@ namespace nlptextdoc.text.document
         /// Content of the document
         /// </summary>
         public IList<DocumentElement> Elements { get; private set; }
+
+        /// <summary>
+        /// Iterate over all TextBlocks and Titles of the documents with depth-first traversal
+        /// </summary>
+        public IEnumerable<string> TextStrings
+        {
+            get
+            {
+                foreach(var str in GetTextStrings(Elements))
+                {
+                    yield return str;
+                }
+            }
+        }
+
+        private IEnumerable<string> GetTextStrings(IEnumerable<DocumentElement> elements)
+        {
+            foreach (var element in elements)
+            {
+                if (element.Type == DocumentElementType.TextBlock)
+                {
+                    yield return ((TextBlock)element).Text;
+                }
+                else if (element is GroupElement)
+                {
+                    if (element is GroupElementWithTitle)
+                    {
+                        var title = ((GroupElementWithTitle)element).Title;
+                        if (!String.IsNullOrEmpty(title))
+                        {
+                            yield return title;
+                        }
+                    }
+                    foreach (var str in GetTextStrings(((GroupElement)element).Elements))
+                    {
+                        yield return str;
+                    }
+                }
+            }
+        }
     }
 }

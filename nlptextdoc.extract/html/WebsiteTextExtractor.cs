@@ -7,6 +7,7 @@ using AngleSharp.Dom.Html;
 using AngleSharp.Network;
 using nlptextdoc.text.document;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -242,6 +243,8 @@ namespace nlptextdoc.extract.html
             logWriter.Write(";");
             logWriter.Write("Content size (bytes)");
             logWriter.Write(";");
+            logWriter.Write("Unique text blocks (%)");
+            logWriter.Write(";");
             logWriter.Write("Crawl depth");
             logWriter.Write(";");
             logWriter.Write("Parent Url");
@@ -256,7 +259,7 @@ namespace nlptextdoc.extract.html
             logWriter.WriteLine();
         }
 
-        private void LogRequest(CrawledPage crawledPage)
+        private void LogRequest(CrawledPage crawledPage, float percentUnique)
         {
             lock (logWriter)
             {
@@ -273,9 +276,12 @@ namespace nlptextdoc.extract.html
                     logWriter.Write((int)(crawledPage.DownloadContentCompleted.Value - crawledPage.DownloadContentStarted.Value).TotalMilliseconds);
                     logWriter.Write(";");
                     logWriter.Write(crawledPage.Content.Bytes.Length);
+                    logWriter.Write(";");
+                    logWriter.Write(percentUnique);
                 }
                 else
                 {
+                    logWriter.Write(";");
                     logWriter.Write(";");
                     logWriter.Write(";");
                 }
@@ -352,12 +358,10 @@ namespace nlptextdoc.extract.html
             {
                 CrawledPage crawledPage = e.CrawledPage;
 
-                // Log the request results
-                LogRequest(crawledPage);
-
                 // Exit if the page wasn't crawled successfully
                 if (crawledPage.WebException != null || crawledPage.HttpWebResponse.StatusCode != HttpStatusCode.OK)
                 {
+                    LogRequest(crawledPage, 0);
                     Perfs.AddCrawlError();
                     return;
                 }
@@ -365,6 +369,7 @@ namespace nlptextdoc.extract.html
                 // Exit if the page had non content
                 if (string.IsNullOrEmpty(crawledPage.Content.Text))
                 {
+                    LogRequest(crawledPage, 0);
                     return;
                 }
 
@@ -378,6 +383,12 @@ namespace nlptextdoc.extract.html
                 var normalizedTextDocument = htmlConverter.ConvertToNLPTextDocument();
                 timer.Stop();
 
+                // Check the percentage of text blocks which are new & unique in this page
+                var percentUnique = Perfs.SetPercentUniqueForLastDoc(normalizedTextDocument);
+                
+                // Log the request results
+                LogRequest(crawledPage, percentUnique);
+
                 // Write the NLPTextDocument as a text file on disk
                 var fileInfo = HtmlFileUtils.GetFilePathFromUri(ContentDirectory, htmlDocumentUri);
                 if (!fileInfo.Directory.Exists)
@@ -388,6 +399,15 @@ namespace nlptextdoc.extract.html
 
                 Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
                 Perfs.WriteStatus();
+
+                // Exit if the percentage of new text blocks 
+                // over the last 1000 pages is below 10%
+                if(Perfs.PercentUniqueForLastDocs < 0.1)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("Extraction stopped because the % of new textblocks fell below 10%");
+                    Environment.Exit(0);
+                }
             }
             catch (Exception ex)
             {
@@ -478,7 +498,14 @@ namespace nlptextdoc.extract.html
 
         public class PerfMonitor
         {
-            public PerfMonitor() { StartTime = DateTime.Now; }
+            public PerfMonitor()
+            {
+                StartTime = DateTime.Now;
+                for(int i = 0; i < percentUniqueForLastDocs.Length; i++)
+                {
+                    percentUniqueForLastDocs[i] = -1;
+                }
+            }
 
             // Count converted Html pages only
             public int HtmlPagesCount;
@@ -492,7 +519,65 @@ namespace nlptextdoc.extract.html
 
             public long HtmlParseTime;
             public long TextConvertTime;
-                       
+
+            // Track unique text blocks
+            private HashSet<int> stringHashes = new HashSet<int>();
+            float[] percentUniqueForLastDocs = new float[1000];
+            int lastDocIndex = -1;
+
+            internal float SetPercentUniqueForLastDoc(NLPTextDocument document)
+            {
+                lock (stringHashes)
+                {
+                    int charCount = 0;
+                    int uniqueCharCount = 0;
+                    foreach (var str in document.TextStrings)
+                    {
+                        charCount += str.Length;
+                        var hashCode = str.GetHashCode();
+                        if (!stringHashes.Contains(hashCode))
+                        {
+                            stringHashes.Add(hashCode);
+                            uniqueCharCount += str.Length;
+                        }
+                    }
+                    var percent = uniqueCharCount / (float)charCount;
+
+                    lastDocIndex++;
+                    if (lastDocIndex >= percentUniqueForLastDocs.Length)
+                    {
+                        lastDocIndex = 0;
+                    }
+                    percentUniqueForLastDocs[lastDocIndex] = percent;
+
+                    return percent;
+                }
+            }
+
+            public float PercentUniqueForLastDocs
+            {
+                get
+                {
+                    float sum = 0;
+                    int count = 0;
+                    for(int i = 0; i < percentUniqueForLastDocs.Length; i++)
+                    {
+                        var percent = percentUniqueForLastDocs[i];
+                        if (percent < 0) break;
+                        sum += percent;
+                        count++;
+                    }
+                    if(count == 0)
+                    {
+                        return 1;
+                    }
+                    else
+                    {
+                        return sum / count;
+                    }
+                }
+            }
+
             internal void AddCrawlError()
             {
                 Interlocked.Increment(ref CrawlErrorsCount);
@@ -530,15 +615,16 @@ namespace nlptextdoc.extract.html
 
             public void WriteStatusHeader()
             {
-                Console.WriteLine("Time    | Pages | Errors | Download   | Disk       | Parsing | Convert |");
+                Console.WriteLine("Time    | Pages | Errors | Unique | Download   | Disk       | Parsing | Convert |");
             }
 
             public void WriteStatus()
             {
-                Console.Write("\r{0} | {1,5} | {2,5}  | {3,7:0.0} Mb | {4,7:0.0} Mb | {5} | {6} |",
+                Console.Write("\r{0} | {1,5} | {2,5}  |  {3,2} %  | {4,7:0.0} Mb | {5,7:0.0} Mb | {6} | {7} |",
                     TimeSpan.FromMilliseconds(ElapsedTime).ToString(@"h\:mm\:ss"),
                     HtmlPagesCount,
                     CrawlErrorsCount,
+                    (int)(PercentUniqueForLastDocs*100),
                     TotalDownloadSize / 1024.0 / 1024.0,
                     TotalSizeOnDisk / 1024.0 / 1024.0,
                     TimeSpan.FromMilliseconds(HtmlParseTime).ToString(@"h\:mm\:ss"),
