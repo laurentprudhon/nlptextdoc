@@ -138,35 +138,55 @@ namespace nlptextdoc.extract.html
         // We need to activate Css dependencies loading to enable this
         private CrawlDecision WebCrawler_ShouldCrawlPageLinks(CrawledPage crawledPage, CrawlContext crawlContext)
         {
-            // Add the page already downloaded by Abot in the document cache
-            var htmlDocumentUri = crawledPage.HttpWebResponse.ResponseUri;
-            if (!context.ResponseCache.ContainsKey(htmlDocumentUri.AbsoluteUri))
+            try
             {
-                var response = VirtualResponse.Create(r =>
+                // Add the page already downloaded by Abot in the document cache
+                var htmlDocumentUri = crawledPage.HttpWebResponse.ResponseUri;
+                if (!context.ResponseCache.ContainsKey(htmlDocumentUri.AbsoluteUri))
                 {
-                    r.Address(new Url(htmlDocumentUri.AbsoluteUri))
-                        .Status(crawledPage.HttpWebResponse.StatusCode)
-                        .Content(crawledPage.Content.Text, crawledPage.Content.Charset);
-                    foreach (var header in crawledPage.HttpWebResponse.Headers.AllKeys)
+                    var response = VirtualResponse.Create(r =>
                     {
-                        r.Header(header, crawledPage.HttpWebResponse.Headers[header]);
-                    }
-                });
-                context.ResponseCache.Add(htmlDocumentUri.AbsoluteUri, response);
+                        r.Address(new Url(htmlDocumentUri.AbsoluteUri))
+                            .Status(crawledPage.HttpWebResponse.StatusCode)
+                            .Content(crawledPage.Content.Text, crawledPage.Content.Charset);
+                        foreach (var header in crawledPage.HttpWebResponse.Headers.AllKeys)
+                        {
+                            r.Header(header, crawledPage.HttpWebResponse.Headers[header]);
+                        }
+                    });
+                    context.ResponseCache.Add(htmlDocumentUri.AbsoluteUri, response);
+                }
+
+                // Parse the page and its Css dependencies whith Anglesharp
+                // in the right context, initialized in the constructor
+                Stopwatch timer = Stopwatch.StartNew();
+                crawledPage.AngleSharpHtmlDocument = context.OpenAsync(htmlDocumentUri.AbsoluteUri).Result as IHtmlDocument;
+                timer.Stop();
+                Perfs.AddParseTime(timer.ElapsedMilliseconds);
+
+                // Remove page which was just parsed from document cache (not useful anymore)
+                context.ResponseCache.Remove(htmlDocumentUri.AbsoluteUri);
+
+                // Don't impact the crawl decision
+                return new CrawlDecision() { Allow = true };
             }
+            catch(Exception e)
+            {
+                // Error while parsing the page
+                WriteError(e);
 
-            // Parse the page and its Css dependencies whith Anglesharp
-            // in the right context, initialized in the constructor
-            Stopwatch timer = Stopwatch.StartNew();
-            crawledPage.AngleSharpHtmlDocument = context.OpenAsync(htmlDocumentUri.AbsoluteUri).Result as IHtmlDocument;
-            timer.Stop();
-            Perfs.AddParseTime(timer.ElapsedMilliseconds);
+                // Don't crawl
+                return new CrawlDecision() { Allow = false };
+            }
+        }
 
-            // Remove page which was just parsed from document cache (not useful anymore)
-            context.ResponseCache.Remove(htmlDocumentUri.AbsoluteUri);
-
-            // Don't impact the crawl decision
-            return new CrawlDecision() { Allow = true };
+        private void WriteError(Exception e)
+        {
+            Console.Out.WriteLine();
+            Console.Out.WriteLine(e.StackTrace);
+            Console.Out.WriteLine();
+            Perfs.WriteStatusHeader();
+            Perfs.WriteStatus();
         }
 
         // Utility method to ensure that we load only Css dependencies
@@ -328,44 +348,54 @@ namespace nlptextdoc.extract.html
         // => called each time a page has been crawled by the web crawler
         private void WebCrawler_PageCrawlCompletedAsync(object sender, PageCrawlCompletedArgs e)
         {
-            CrawledPage crawledPage = e.CrawledPage;
-
-            // Log the request results
-            LogRequest(crawledPage);
-
-            // Exit if the page wasn't crawled successfully
-            if (crawledPage.WebException != null || crawledPage.HttpWebResponse.StatusCode != HttpStatusCode.OK)
+            try
             {
-                Perfs.AddCrawlError();
-                return;
-            }
+                CrawledPage crawledPage = e.CrawledPage;
 
-            // Exit if the page had non content
-            if (string.IsNullOrEmpty(crawledPage.Content.Text))
+                // Log the request results
+                LogRequest(crawledPage);
+
+                // Exit if the page wasn't crawled successfully
+                if (crawledPage.WebException != null || crawledPage.HttpWebResponse.StatusCode != HttpStatusCode.OK)
+                {
+                    Perfs.AddCrawlError();
+                    return;
+                }
+
+                // Exit if the page had non content
+                if (string.IsNullOrEmpty(crawledPage.Content.Text))
+                {
+                    return;
+                }
+
+                // Get the page and its Css dependencies parsed by Abot whith Anglesharp
+                var htmlDocumentUri = crawledPage.HttpWebResponse.ResponseUri;
+                var htmlDocument = crawledPage.AngleSharpHtmlDocument;
+
+                // Visit the Html page syntax tree and convert it to NLPTextDocument
+                Stopwatch timer = Stopwatch.StartNew();
+                var htmlConverter = new HtmlDocumentConverter(htmlDocumentUri.AbsoluteUri, htmlDocument);
+                var normalizedTextDocument = htmlConverter.ConvertToNLPTextDocument();
+                timer.Stop();
+
+                // Write the NLPTextDocument as a text file on disk
+                var fileInfo = HtmlFileUtils.GetFilePathFromUri(ContentDirectory, htmlDocumentUri);
+                if (!fileInfo.Directory.Exists)
+                {
+                    fileInfo.Directory.Create();
+                }
+                NLPTextDocumentWriter.WriteToFile(normalizedTextDocument, fileInfo.FullName);
+
+                Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
+                Perfs.WriteStatus();
+            }
+            catch (Exception ex)
             {
-                return;
+                // Safeguard to make sure that an error 
+                // during the processing of a single page 
+                // can't stop the whole crawl process                
+                WriteError(ex);
             }
-
-            // Get the page and its Css dependencies parsed by Abot whith Anglesharp
-            var htmlDocumentUri = crawledPage.HttpWebResponse.ResponseUri;
-            var htmlDocument = crawledPage.AngleSharpHtmlDocument;
-
-            // Visit the Html page syntax tree and convert it to NLPTextDocument
-            Stopwatch timer = Stopwatch.StartNew();
-            var htmlConverter = new HtmlDocumentConverter(htmlDocumentUri.AbsoluteUri, htmlDocument);
-            var normalizedTextDocument = htmlConverter.ConvertToNLPTextDocument();
-            timer.Stop();
-
-            // Write the NLPTextDocument as a text file on disk
-            var fileInfo = HtmlFileUtils.GetFilePathFromUri(ContentDirectory, htmlDocumentUri);
-            if (!fileInfo.Directory.Exists)
-            {
-                fileInfo.Directory.Create();
-            }
-            NLPTextDocumentWriter.WriteToFile(normalizedTextDocument, fileInfo.FullName);
-
-            Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
-            Perfs.WriteStatus();
         }
 
         // -----------------------
