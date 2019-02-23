@@ -13,13 +13,17 @@ namespace nlptextdoc.text.document
     {
         public NLPTextDocument TextDocument { get; private set; }
 
+        private Stack<DocumentElementType> containersType;
         private Stack<IList<DocumentElement>> containers;
         private int NestingLevel { get { return containers.Count; } }
+        private DocumentElementType CurrentContainerType { get { return containersType.Peek(); } }
         private IList<DocumentElement> CurrentContainer { get { return containers.Peek(); } }
 
         public NLPTextDocumentBuilder(string uri = "?")
         {
             TextDocument = new NLPTextDocument(uri);
+            containersType = new Stack<DocumentElementType>();
+            containersType.Push(DocumentElementType.Section);
             containers = new Stack<IList<DocumentElement>>();
             containers.Push(TextDocument.Elements);
         }
@@ -51,20 +55,27 @@ namespace nlptextdoc.text.document
 
         public void AddTextBlock(string text)
         {
-            var docElt = new TextBlock(NestingLevel, text);
-            CurrentContainer.Add(docElt);
+            if( CurrentContainerType != DocumentElementType.List && 
+                CurrentContainerType != DocumentElementType.NavigationList && 
+                CurrentContainerType != DocumentElementType.Table)
+            {
+                var docElt = new TextBlock(NestingLevel, text);
+                CurrentContainer.Add(docElt);
+            }
         }
 
         public void StartSection(string title = null)
         {
             var docElt = new Section(NestingLevel, title);
             CurrentContainer.Add(docElt);
+            containersType.Push(docElt.Type);
             containers.Push(docElt.Elements);
         }
 
         public void EndSection()
         {
             // TO DO : check type at the top of the stack !
+            containersType.Pop();
             containers.Pop();
         }
 
@@ -72,6 +83,7 @@ namespace nlptextdoc.text.document
         {
             var docElt = new List(NestingLevel, true, title);
             CurrentContainer.Add(docElt);
+            containersType.Push(docElt.Type);
             containers.Push(docElt.Elements);
         }
 
@@ -79,12 +91,14 @@ namespace nlptextdoc.text.document
         {
             var docElt = new List(NestingLevel, title);
             CurrentContainer.Add(docElt);
+            containersType.Push(docElt.Type);
             containers.Push(docElt.Elements);
         }
 
         public void EndList()
         {
             // TO DO : check type at the top of the stack !
+            containersType.Pop();
             containers.Pop();
         }
 
@@ -92,12 +106,14 @@ namespace nlptextdoc.text.document
         {
             var docElt = new ListItem(NestingLevel);
             CurrentContainer.Add(docElt);
+            containersType.Push(docElt.Type);
             containers.Push(docElt.Elements);
         }
 
         public void EndListItem()
         {
             // TO DO : check type at the top of the stack !
+            containersType.Pop();
             containers.Pop();
         }
 
@@ -105,12 +121,14 @@ namespace nlptextdoc.text.document
         {
             var docElt = new Table(NestingLevel, title);
             CurrentContainer.Add(docElt);
+            containersType.Push(docElt.Type);
             containers.Push((IList<DocumentElement>)docElt.Elements);
         }
 
         public void EndTable()
         {
             // TO DO : check type at the top of the stack !
+            containersType.Pop();
             containers.Pop();
         }
 
@@ -118,12 +136,14 @@ namespace nlptextdoc.text.document
         {
             var docElt = new TableHeader(NestingLevel, row, rowspan, col, colspan);
             CurrentContainer.Add(docElt);
+            containersType.Push(docElt.Type);
             containers.Push(docElt.Elements);
         }
 
         public void EndTableHeader()
         {
             // TO DO : check type at the top of the stack !
+            containersType.Pop();
             containers.Pop();
         }
 
@@ -131,12 +151,14 @@ namespace nlptextdoc.text.document
         {
             var docElt = new TableCell(NestingLevel, row, rowspan, col, colspan);
             CurrentContainer.Add(docElt);
+            containersType.Push(docElt.Type);
             containers.Push(docElt.Elements);
         }
 
         public void EndTableCell()
         {
             // TO DO : check type at the top of the stack !
+            containersType.Pop();
             containers.Pop();
         }
     }

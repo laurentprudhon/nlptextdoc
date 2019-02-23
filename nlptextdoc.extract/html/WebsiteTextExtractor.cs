@@ -267,7 +267,10 @@ namespace nlptextdoc.extract.html
                 logWriter.Write(";");
                 logWriter.Write(crawledPage.Uri.AbsoluteUri);
                 logWriter.Write(";");
-                logWriter.Write(crawledPage.HttpWebResponse.StatusCode);
+                if (crawledPage.HttpWebResponse != null)
+                {
+                    logWriter.Write(crawledPage.HttpWebResponse.StatusCode);
+                }
                 logWriter.Write(";");
                 logWriter.Write((int)crawledPage.Elapsed);
                 if (crawledPage.DownloadContentCompleted.HasValue)

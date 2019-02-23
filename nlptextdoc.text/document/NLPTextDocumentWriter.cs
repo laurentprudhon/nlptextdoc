@@ -126,26 +126,33 @@ namespace nlptextdoc.text.document
             }
             writer.Write(NLPTextDocumentFormat.DOCUMENT_ELEMENT_ITEMS_START);
             writer.Write(' ');
-            var items = listElement.Elements.Select(item => ((ListItem)item).Elements.OfType<TextBlock>().FirstOrDefault());
-            bool isFirstItem = true;
-            foreach (var item in items)
+            try
             {
-                if (item != null)
+                var items = listElement.Elements.Select(item => ((ListItem)item).Elements.OfType<TextBlock>().FirstOrDefault());
+                bool isFirstItem = true;
+                foreach (var item in items)
                 {
-                    if (!isFirstItem)
+                    if (item != null)
                     {
-                        writer.Write(' ');
-                        writer.Write(NLPTextDocumentFormat.DOCUMENT_ELEMENT_ITEMS_SEPARATOR);
-                        writer.Write(' ');
+                        if (!isFirstItem)
+                        {
+                            writer.Write(' ');
+                            writer.Write(NLPTextDocumentFormat.DOCUMENT_ELEMENT_ITEMS_SEPARATOR);
+                            writer.Write(' ');
+                        }
+                        else
+                        {
+                            isFirstItem = false;
+                        }
+                        WriteTextBlock(writer, item.Text, false);
                     }
-                    else
-                    {
-                        isFirstItem = false;
-                    }
-                    WriteTextBlock(writer, item.Text, false);
                 }
+                writer.WriteLine();
             }
-            writer.WriteLine();
+            catch(Exception e)
+            {
+
+            }
         }
 
         // ## [NestingLevel] [Section|List|Table] Start ...title...
