@@ -4,7 +4,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>d5cc037d-e412-4cc6-91bd-0a52f3627868</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>nlptextdoc.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -20,9 +21,6 @@
     <DebugSymbols>true</DebugSymbols>
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="nlptextdoc.py" />
-  </ItemGroup>
   <ItemGroup>
     <Content Include="nlptextdoc-lib-v1.ipynb" />
   </ItemGroup>
