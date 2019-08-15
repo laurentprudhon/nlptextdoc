@@ -544,7 +544,7 @@ namespace nlptextdoc.extract.html
                             uniqueCharCount += str.Length;
                         }
                     }
-                    var percent = uniqueCharCount / (float)charCount;
+                    var percent = (charCount > 0) ? (uniqueCharCount / (float)charCount) : 1;
 
                     lastDocIndex++;
                     if (lastDocIndex >= percentUniqueForLastDocs.Length)
