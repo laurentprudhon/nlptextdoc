@@ -151,7 +151,7 @@ namespace nlptextdoc.text.document
             }
             catch(Exception e)
             {
-
+                // TO DO : remove this when fixing issue #21
             }
         }
 

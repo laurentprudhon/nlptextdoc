@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 
 /// <summary>
 /// In-place replacement for the heavy log4net package in this simple context
@@ -42,6 +43,12 @@ namespace log4net
     public class LogManager
     {
         private static ILog singletonLogger;
+        internal static TextWriter outputWriter = Console.Out;
+
+        public static void SetTextWriter(TextWriter textWriter)
+        {
+            outputWriter = textWriter;
+        }
 
         public static ILog GetLogger(string name)
         {
@@ -59,7 +66,19 @@ namespace log4net
 
         private static void WriteLog(string level, string message)
         {
-            Console.WriteLine(level + ": " + message);
+            try
+            {
+                lock (LogManager.outputWriter)
+                {
+                    LogManager.outputWriter.WriteLine(level + ": " + message);
+                    LogManager.outputWriter.Flush();
+                }
+            }
+            catch
+            {
+                Console.Out.WriteLine(level + ": " + message);
+                Console.Out.Flush();
+            }
         }
 
         public bool IsDebugEnabled

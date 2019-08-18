@@ -205,21 +205,25 @@ namespace nlptextdoc.extract.html
             }
             catch(Exception e)
             {
-                // Error while parsing the page
-                WriteError(e);
+                WriteError("Error while parsing the page " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
 
                 // Don't crawl
                 return new CrawlDecision() { Allow = false };
             }
         }
 
-        private void WriteError(Exception e)
+        private void WriteError(string context, Exception e)
         {
-            Console.Out.WriteLine();
-            Console.Out.WriteLine(e.StackTrace);
-            Console.Out.WriteLine();
-            Perfs.WriteStatusHeader();
-            Perfs.WriteStatus();
+            lock (errorWriter)
+            {
+                errorWriter.WriteLine(DateTime.Now.ToLongTimeString());
+                errorWriter.WriteLine(context);
+                errorWriter.WriteLine("--------------------");
+                errorWriter.WriteLine(e.Message);
+                errorWriter.WriteLine(e.StackTrace);
+                errorWriter.WriteLine();
+                errorWriter.Flush();
+            }
         }
 
         // Utility method to ensure that we load only Css dependencies
@@ -259,6 +263,7 @@ namespace nlptextdoc.extract.html
         // Write a log of the main http requests
 
         private StreamWriter logWriter;
+        private StreamWriter errorWriter;
 
         private void InitLogFile()
         {
@@ -289,6 +294,9 @@ namespace nlptextdoc.extract.html
             logWriter.Write(";");
             logWriter.Write("Error message");
             logWriter.WriteLine();
+
+            errorWriter = new StreamWriter(Path.Combine(ContentDirectory.FullName, "exceptions.log.txt"));
+            log4net.LogManager.SetTextWriter(errorWriter);
         }
 
         private void LogRequest(CrawledPage crawledPage, float percentUnique)
@@ -361,6 +369,9 @@ namespace nlptextdoc.extract.html
         {
             logWriter.Dispose();
             logWriter = null;
+
+            errorWriter.Dispose();
+            errorWriter = null;
         }
 
         /// <summary>
@@ -434,7 +445,7 @@ namespace nlptextdoc.extract.html
 
                 Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
                 Perfs.WriteStatus();
-
+                
                 // Exit if the percentage of new text blocks 
                 // over the last 1000 pages is below 10%
                 if(Perfs.PercentUniqueForLastDocs < 0.1)
@@ -449,7 +460,7 @@ namespace nlptextdoc.extract.html
                 // Safeguard to make sure that an error 
                 // during the processing of a single page 
                 // can't stop the whole crawl process                
-                WriteError(ex);
+                WriteError("Error while processing the page : " + e.CrawledPage.HttpWebResponse.ResponseUri.AbsoluteUri,  ex);
             }
         }
 
