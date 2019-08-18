@@ -97,31 +97,23 @@ namespace Robots.Model
                 else if (entryText.StartsWith(DISALLOW_KEYWORD, true, CultureInfo.InvariantCulture))
                 {
                     type = EntryType.Disallow;
-                    bool inverted = entryText.EndsWith("$");
-                    string value = entryText.Substring(DISALLOW_KEYWORD.Length).Trim().TrimEnd('?');
-
-                    Uri url = null;
-                    if (!string.IsNullOrEmpty(value) && Uri.TryCreate(baseUri, value, out url))
+                    string pattern = entryText.Substring(DISALLOW_KEYWORD.Length).Trim();
+                    if (!string.IsNullOrEmpty(pattern))
                     {
                         entry = CreateEntry(type);
                         entry.Comment = comment;
-                        ((UrlEntry)entry).Url = url;
-                        ((UrlEntry)entry).Inverted = inverted;
+                        ((UrlEntry)entry).Pattern = pattern;
                     }
                 }
                 else if (entryText.StartsWith(ALLOW_KEYWORD, true, CultureInfo.InvariantCulture))
                 {
                     type = EntryType.Allow;
-                    bool inverted = entryText.EndsWith("$");
-                    string value = entryText.Substring(ALLOW_KEYWORD.Length).Trim().TrimEnd('?');
-
-                    Uri url;
-                    if (Uri.TryCreate(baseUri, value, out url))
+                    string pattern = entryText.Substring(ALLOW_KEYWORD.Length).Trim();
+                    if (!string.IsNullOrEmpty(pattern))
                     {
                         entry = CreateEntry(type);
                         entry.Comment = comment;
-                        ((UrlEntry)entry).Url = url;
-                        ((UrlEntry)entry).Inverted = inverted;
+                        ((UrlEntry)entry).Pattern = pattern;
                     }
                 }
                 else if (entryText.StartsWith(CRAWL_DELAY_KEYWORD, true, CultureInfo.InvariantCulture))

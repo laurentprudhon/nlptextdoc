@@ -87,6 +87,7 @@ namespace nlptextdoc.extract.html
             config.UseDefaultCredentials = false;
 
             crawler = new PoliteWebCrawler(config);
+            crawler.IsInternalUri(WebCrawler_IsInternalUri);
             crawler.ShouldCrawlPageLinks(WebCrawler_ShouldCrawlPageLinks);
             crawler.PageCrawlCompletedAsync += WebCrawler_PageCrawlCompletedAsync;
 
@@ -132,6 +133,37 @@ namespace nlptextdoc.extract.html
             {
                 var textSize = ((CssParseEvent)ev).StyleSheet.SourceCode.Text.Length;
                 Perfs.AddDownloadSize(textSize);
+            }
+        }
+
+        // By default, Abot crawls pages exactly in the same domain and nothing else :
+        // subdomain.domain.com is not crawled if the root Uri is www.domain.com
+        // We want to crawl pages in the same BASE domain :
+        // we compare only domain.com, and ignore all subdomains before
+        private bool WebCrawler_IsInternalUri(Uri arg1, Uri arg2)
+        {
+            return GetBaseDomain(arg1) == GetBaseDomain(arg2);
+        }
+
+        /// <summary>
+        /// Returns the base domain from a domain name
+        /// Example: http://www.west-wind.com returns west-wind.com
+        /// </summary>
+        private static string GetBaseDomain(Uri uri)
+        {
+            if (uri.HostNameType == UriHostNameType.Dns)
+            {
+                var domainName = uri.DnsSafeHost;
+                var tokens = domainName.Split('.');
+
+                if (tokens == null || tokens.Length < 3)
+                    return domainName;
+
+                return tokens[tokens.Length - 2] + "." + tokens[tokens.Length - 1];
+            }
+            else
+            {
+                return uri.Host;
             }
         }
 
@@ -618,12 +650,12 @@ namespace nlptextdoc.extract.html
 
             public void WriteStatusHeader()
             {
-                Console.WriteLine("Time    | Pages | Errors | Unique | Download   | Disk       | Parsing | Convert |");
+                Console.WriteLine("Time    | Pages | Errors | Unique  | Download   | Disk       | Parsing | Convert |");
             }
 
             public void WriteStatus()
             {
-                Console.Write("\r{0} | {1,5} | {2,5}  |  {3,2} %  | {4,7:0.0} Mb | {5,7:0.0} Mb | {6} | {7} |",
+                Console.Write("\r{0} | {1,5} | {2,5}  |  {3,3} %  | {4,7:0.0} Mb | {5,7:0.0} Mb | {6} | {7} |",
                     TimeSpan.FromMilliseconds(ElapsedTime).ToString(@"h\:mm\:ss"),
                     HtmlPagesCount,
                     CrawlErrorsCount,

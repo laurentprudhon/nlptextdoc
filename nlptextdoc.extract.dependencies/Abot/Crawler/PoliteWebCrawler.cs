@@ -100,6 +100,11 @@ namespace Abot.Crawler
             return base.Crawl(uri, cancellationTokenSource);
         }
 
+        public void IsInternalUri()
+        {
+            throw new NotImplementedException();
+        }
+
         protected override bool ShouldCrawlPage(PageToCrawl pageToCrawl)
         {
             bool allowedByRobots = true;

@@ -86,22 +86,42 @@ namespace Abot.Core
             {
                 // Try to patch redirect error
                 bool fixedRedirectError = false;
-                if (e.Response != null && e.Response.ResponseUri != null)
+                if (e.Response != null)
                 {
-                    string responseUri = e.Response.ResponseUri.AbsoluteUri;
+                    string candidateUri = null;
                     Uri fixedUri = null;
-                    if (responseUri.Contains("#"))
+
+                    int statusCode = e.Response is HttpWebResponse ?
+                        (int)((HttpWebResponse)e.Response).StatusCode : 0;
+                    if (statusCode >= 300 && statusCode <= 308)
                     {
-                        fixedUri = new Uri(responseUri.Substring(0, responseUri.IndexOf('#')));
+                        string location = e.Response.Headers != null ?
+                           e.Response.Headers.Get("Location") : null;
+                        if (location != null)
+                        {
+                            candidateUri = location;
+                            fixedUri = new Uri(candidateUri);
+                        }
                     }
-                    else if(responseUri.EndsWith("%20"))
+                    if(candidateUri == null && e.Response.ResponseUri != null)
                     {
-                        fixedUri = new Uri(e.Response.ResponseUri.ToString().Trim());
+                        candidateUri = e.Response.ResponseUri.AbsoluteUri;
                     }
-                    if(fixedUri != null)
+                    if(candidateUri != null)
+                    {                        
+                        if (candidateUri.Contains("#"))
+                        {
+                            fixedUri = new Uri(candidateUri.Substring(0, candidateUri.IndexOf('#')));
+                        }
+                        else if (candidateUri.EndsWith("%20"))
+                        {
+                            fixedUri = new Uri(e.Response.ResponseUri.ToString().Trim());
+                        }
+                    }
+                    if (fixedUri != null)
                     {
                         try
-                        {                            
+                        {
                             request = BuildRequestObject(fixedUri);
                             crawledPage.RequestStarted = DateTime.Now;
                             response = (HttpWebResponse)request.GetResponse();
@@ -115,6 +135,12 @@ namespace Abot.Core
                 if (!fixedRedirectError)
                 {
                     crawledPage.WebException = e;
+
+                    // Check for protections against bot scraping
+                    if(e.Response.Headers.Get("X-DataDome") != null)
+                    {
+                        Console.WriteLine("This website is protected against bots crawling by https://datadome.co/fr/ : crawl aborted to comply with this policy.");
+                    }
 
                     if (e.Response != null)
                         response = (HttpWebResponse)e.Response;

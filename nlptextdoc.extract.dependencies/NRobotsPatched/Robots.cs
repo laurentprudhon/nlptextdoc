@@ -217,16 +217,15 @@ namespace Robots
                 return true;
 
 
-            string[] uriParts = uri.LocalPath.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            string path = uri.PathAndQuery;
             foreach (var disallowEntry in userAgentEntry.DisallowEntries)
             {
-                bool result;
-                if (CheckDisallowedEntry(disallowEntry, uriParts, out result))
+                if (Matches(path, disallowEntry.Pattern))
                 {
                     if (CheckExplicitlyAllowed(userAgentEntry, uri))
                         return true;
 
-                    return result;
+                    return false;
                 }
             }
 
@@ -321,90 +320,73 @@ namespace Robots
             //if (!IsInternalToDomain(uri))
             //    return true;
 
-            string[] uriParts = uri.PathAndQuery.Split(new[] {'/', '?'}, StringSplitOptions.RemoveEmptyEntries);
+            string path = uri.PathAndQuery;
             foreach (var allowEntry in userAgentEntry.AllowEntries)
             {
-                bool result;
-                if (CheckAllowedEntry(allowEntry, uriParts, out result))
+                if (Matches(path, allowEntry.Pattern))
                 {
-                    return result;
+                    return true;
                 }
             }
 
             return false;
         }
 
-        private static bool CheckAllowedEntry(AllowEntry entry, string[] uriParts, out bool allow)
+        /// <summary>
+        /// Logic copied from the reference implementation from Google :
+        /// https://github.com/google/robotstxt/blob/ba04b44512be77e8c641b97d8c7def72c7fceda5/robots.cc
+        /// Returns true if URI path matches the specified pattern. Pattern is anchored
+        /// at the beginning of path. '$' is special only at the end of pattern.
+        /// Since 'path' and 'pattern' are both externally determined (by the webmaster),
+        /// we make sure to have acceptable worst-case performance.
+        /// </summary>
+        private static bool Matches(string path, string pattern)
         {
-            allow = true;
-            string[] robotInstructionUriParts = entry.Url.PathAndQuery.Split(new[] { '/', '?' }, StringSplitOptions.RemoveEmptyEntries);
+            int pathlen = path.Length;
+            int[] pos = new int[pathlen +1];
+            int numpos;
 
-            if (robotInstructionUriParts.Length > uriParts.Length)
-                return false;
+            // The pos[] array holds a sorted list of indexes of 'path', with length
+            // 'numpos'.  At the start and end of each iteration of the main loop below,
+            // the pos[] array will hold a list of the prefixes of the 'path' which can
+            // match the current prefix of 'pattern'. If this list is ever empty,
+            // return false. If we reach the end of 'pattern' with at least one element
+            // in pos[], return true.
 
-            bool mismatch = false;
-            for (int i = 0; i < Math.Min(robotInstructionUriParts.Length, uriParts.Length); i++)
+            pos[0] = 0;
+            numpos = 1;
+
+            int lastPatternIndex = pattern.Length - 1;
+            for(int patIndex = 0; patIndex <= lastPatternIndex; patIndex++)
             {
-                if (string.Compare(uriParts[i], robotInstructionUriParts[i], true) != 0)
+                char pat = pattern[patIndex];
+                if (pat == '$' && patIndex == lastPatternIndex)
                 {
-                    mismatch = true;
-                    break;
+                    return (pos[numpos - 1] == pathlen);
+                }
+                if (pat == '*')
+                {
+                    numpos = pathlen - pos[0] + 1;
+                    for (int i = 1; i < numpos; i++)
+                    {
+                        pos[i] = pos[i - 1] + 1;
+                    }
+                }
+                else
+                {
+                    // Includes '$' when not at end of pattern.
+                    int newnumpos = 0;
+                    for (int i = 0; i < numpos; i++)
+                    {
+                        if (pos[i] < pathlen && path[pos[i]] == pat)
+                        {
+                            pos[newnumpos++] = pos[i] + 1;
+                        }
+                    }
+                    numpos = newnumpos;
+                    if (numpos == 0) return false;
                 }
             }
-            if (mismatch)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-        private static bool CheckDisallowedEntry(DisallowEntry entry, string[] uriParts, out bool allow)
-        {
-            allow = true;
-            string[] robotInstructionUriParts = entry.Url.PathAndQuery.Split(new[] { '/', '?' }, StringSplitOptions.RemoveEmptyEntries);
-
-            if (robotInstructionUriParts.Length > uriParts.Length)
-                return false;
-
-            bool lastPartIsComplete = entry.Url.PathAndQuery.EndsWith("/");
-
-            int end = Math.Min(robotInstructionUriParts.Length, uriParts.Length);
-            bool mismatch = false;
-            for (int i = 0; i < end; i++)
-            {
-                int index1 = i, index2 = i;
-                if (entry.Inverted)
-                {
-                    index1 = robotInstructionUriParts.Length - i - 1;
-                    index2 = uriParts.Length - i - 1;
-                }
-
-                bool partIsComplete = i < end - 1 || lastPartIsComplete;
-
-                if (IsMismatch(robotInstructionUriParts[index1], uriParts[index2], partIsComplete))
-                {
-                    mismatch = true;
-                    break;
-                }
-            }
-            if (!mismatch)
-            {
-                allow = false;
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsMismatch(string regsiteredPart, string testedPart, bool partIsComplete)
-        {
-            if (string.Compare("*", regsiteredPart, true) == 0)
-                return false;
-            if (string.Compare(testedPart, regsiteredPart, true) == 0)
-                return false;
-            if (!partIsComplete && testedPart.StartsWith(regsiteredPart, StringComparison.InvariantCultureIgnoreCase))
-                return false;
 
             return true;
         }

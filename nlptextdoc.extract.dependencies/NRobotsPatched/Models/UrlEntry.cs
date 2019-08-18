@@ -7,9 +7,7 @@ namespace Robots.Model
         protected UrlEntry(EntryType type)
             : base(type)
         { }
-
-        public bool Inverted { get; set; }
-        
-        public Uri Url { get; set; }
+  
+        public string Pattern { get; set; }
     }
 }
