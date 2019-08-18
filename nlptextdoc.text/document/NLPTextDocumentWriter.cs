@@ -59,7 +59,7 @@ namespace nlptextdoc.text.document
                 if (docElement.Type == DocumentElementType.TextBlock)
                 {
                     var textBlock = (TextBlock)docElement;
-                    WriteTextBlock(writer, textBlock.Text);
+                    WriteTextBlock(writer, textBlock.Text, true, true);
                 }
                 else
                 {
@@ -234,11 +234,15 @@ namespace nlptextdoc.text.document
             writer.WriteLine();
         }
 
-        private static void WriteTextBlock(StreamWriter writer, string text, bool finishLine = true)
+        private static void WriteTextBlock(StreamWriter writer, string text, bool finishLine = true, bool escapeLine = false)
         {
             if (text.Contains("\n"))
             {
                 text = text.Replace("\n", "\\n");
+            }
+            if(escapeLine && text.StartsWith("##"))
+            {
+                text = ". " + text;
             }
             if (finishLine)
             {
