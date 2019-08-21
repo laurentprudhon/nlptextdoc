@@ -60,7 +60,7 @@ namespace nlptextdoc.extract.html
             config.HttpRequestTimeoutInSeconds = 15;
             config.HttpRequestMaxAutoRedirects = 7;
             config.IsHttpRequestAutoRedirectsEnabled = true;
-            config.IsHttpRequestAutomaticDecompressionEnabled = false;
+            config.IsHttpRequestAutomaticDecompressionEnabled = true;
             config.IsSendingCookiesEnabled = false;
             config.IsSslCertificateValidationEnabled = false;
             config.MinAvailableMemoryRequiredInMb = 0;
