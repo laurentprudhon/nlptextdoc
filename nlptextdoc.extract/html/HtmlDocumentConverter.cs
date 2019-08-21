@@ -549,13 +549,13 @@ namespace nlptextdoc.extract.html
             var rowSpanAttribute = htmlElement.Attributes["rowspan"];
             if (rowSpanAttribute != null)
             {
-                rowSpan = Int32.Parse(rowSpanAttribute.Value);
+                Int32.TryParse(rowSpanAttribute.Value, out rowSpan);
             }
             int colSpan = 1;
             var colSpanAttribute = htmlElement.Attributes["colspan"];
             if (colSpanAttribute != null)
             {
-                colSpan = Int32.Parse(colSpanAttribute.Value);
+                Int32.TryParse(colSpanAttribute.Value, out colSpan);
             }
             var htmlElementName = htmlElement.TagName.ToLower();
             if (htmlElementName == "th")
