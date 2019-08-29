@@ -205,7 +205,16 @@ namespace nlptextdoc.extract.html
             }
             catch(Exception e)
             {
-                WriteError("Error while parsing the page " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
+                if (e is ArgumentException)
+                {
+                    // Do nothing if the key already exists : 
+                    // - one exception every 15 minutes is better than a systematic lock on each call
+                    // - the crawl decision below will properly avoid analyzing the page twice
+                }
+                else
+                {
+                    WriteError("Error while parsing the page " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
+                }
 
                 // Don't crawl
                 return new CrawlDecision() { Allow = false };

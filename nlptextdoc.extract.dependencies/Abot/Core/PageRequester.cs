@@ -136,14 +136,16 @@ namespace Abot.Core
                 {
                     crawledPage.WebException = e;
 
-                    // Check for protections against bot scraping
-                    if(e.Response.Headers.Get("X-DataDome") != null)
-                    {
-                        Console.WriteLine("This website is protected against bots crawling by https://datadome.co/fr/ : crawl aborted to comply with this policy.");
-                    }
-
                     if (e.Response != null)
+                    {
                         response = (HttpWebResponse)e.Response;
+
+                        // Check for protections against bot scraping
+                        if (response.Headers.Get("X-DataDome") != null)
+                        {
+                            Console.WriteLine("This website is protected against bots crawling by https://datadome.co/fr/ : crawl aborted to comply with this policy.");
+                        }
+                    }
 
                     _logger.DebugFormat("Error occurred requesting url [{0}]", uri.AbsoluteUri);
                     _logger.Debug(e);
