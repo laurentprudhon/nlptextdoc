@@ -99,8 +99,7 @@ namespace Abot.Core
                            e.Response.Headers.Get("Location") : null;
                         if (location != null)
                         {
-                            candidateUri = location;
-                            fixedUri = new Uri(candidateUri);
+                            candidateUri = location;                         
                         }
                     }
                     if(candidateUri == null && e.Response.ResponseUri != null)
@@ -111,11 +110,20 @@ namespace Abot.Core
                     {                        
                         if (candidateUri.Contains("#"))
                         {
-                            fixedUri = new Uri(candidateUri.Substring(0, candidateUri.IndexOf('#')));
+                            candidateUri = candidateUri.Substring(0, candidateUri.IndexOf('#'));
                         }
                         else if (candidateUri.EndsWith("%20"))
                         {
-                            fixedUri = new Uri(e.Response.ResponseUri.ToString().Trim());
+                            candidateUri = e.Response.ResponseUri.ToString().Trim();
+                        }
+
+                        if (Uri.IsWellFormedUriString(candidateUri, UriKind.Absolute))
+                        {
+                            fixedUri = new Uri(candidateUri);
+                        }
+                        else if (e.Response.ResponseUri != null && Uri.IsWellFormedUriString(candidateUri, UriKind.Relative))
+                        {
+                            fixedUri = new Uri(e.Response.ResponseUri, candidateUri);
                         }
                     }
                     if (fixedUri != null)
