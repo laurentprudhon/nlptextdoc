@@ -61,7 +61,10 @@ namespace Abot.Core
             {
                 int ind = ctype.IndexOf("charset=");
                 if (ind != -1)
+                {
                     charset = ctype.Substring(ind + 8);
+                    charset = charset.Trim('"', '\'');
+                }
             }
             return charset;
         }
