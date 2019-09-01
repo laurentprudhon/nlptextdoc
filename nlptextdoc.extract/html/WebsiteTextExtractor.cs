@@ -17,14 +17,58 @@ using System.Threading;
 namespace nlptextdoc.extract.html
 {
     public class WebsiteTextExtractor : IDisposable
-    {
-        public WebsiteTextExtractor(string rootURI, string storagePath, int maxPagesCount = 0, int minCrawlDelay = 0)
+    {        
+        public WebsiteTextExtractor(WebsiteExtractorParams extractorParams)
         {
-            ConfigureWebCrawler(rootURI, maxPagesCount, minCrawlDelay);
-            ConfigureHtmlParser();
-            ConfigureStorageDirectories(storagePath);
-            InitLogFile();
+            // Save params
+            ExtractorParams = extractorParams;
+            
+            Init();
         }        
+
+        public WebsiteTextExtractor(string storageDirForWebsite, string[] newParams, bool doContinue = false)
+        {
+            // Save action requested
+            DoContinue = doContinue;
+
+            // Reload params file 
+            FileInfo paramFileInfo = new FileInfo(Path.Combine(storageDirForWebsite, LogsDirName, ParamsFileName));
+            if(!paramFileInfo.Exists)
+            {
+                throw new Exception("No parameters file found at : " + paramFileInfo.FullName);
+            }
+            using (StreamReader sr = new StreamReader(paramFileInfo.FullName))
+            {
+                ExtractorParams = WebsiteExtractorParams.ReadFromFile(sr);
+            }
+            // Override with new params
+            if(newParams != null)
+            {
+                foreach(string keyValueParam in newParams)
+                {
+                    ExtractorParams.ParseParam(keyValueParam);
+                }
+            }
+
+            Init();
+        }
+
+        private void Init()
+        {
+            // Initialize the extraction task
+            ConfigureWebCrawler(ExtractorParams.RootUrl, ExtractorParams.MaxPageCount, ExtractorParams.MinCrawlDelay);
+            ConfigureHtmlParser();
+
+            // Initialize the content directory and log files
+            ConfigureStorageDirectories(ExtractorParams.StorageDir);
+            InitLogFiles();
+        }
+
+        // Action requested : start a new extraction or continue a previous extraction
+        public bool DoContinue { get; private set; }
+
+        // Store configuration params
+        public WebsiteExtractorParams ExtractorParams { get; private set; }
 
         // Root URI for web crawler
         public Uri RootUri { get; private set; }
@@ -274,9 +318,27 @@ namespace nlptextdoc.extract.html
         private StreamWriter logWriter;
         private StreamWriter errorWriter;
 
-        private void InitLogFile()
+        public static string LogsDirName = "_nlptextdoc";
+        public static string ParamsFileName = "params.txt";
+        public static string HttpLogFileName = "httprequests.log.csv";
+        public static string ExceptionsLogFileName = "exceptions.log.txt";
+        public static string CheckpointFileName = "checkpoint.txt";
+
+        private void InitLogFiles()
         {
-            logWriter = new StreamWriter(Path.Combine(ContentDirectory.FullName,"httprequests.log.csv"));
+            var logsDirectory = new DirectoryInfo(Path.Combine(ContentDirectory.FullName, LogsDirName));
+            if(!logsDirectory.Exists)
+            {
+                logsDirectory.Create();
+            }
+
+            using(var paramsWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, ParamsFileName), DoContinue))
+            {
+                if (DoContinue) paramsWriter.WriteLine();
+                ExtractorParams.WriteToFile(paramsWriter);
+            }
+
+            logWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, HttpLogFileName), DoContinue);
             logWriter.Write("Clock");
             logWriter.Write(";");
             logWriter.Write("Url");
@@ -304,7 +366,7 @@ namespace nlptextdoc.extract.html
             logWriter.Write("Error message");
             logWriter.WriteLine();
 
-            errorWriter = new StreamWriter(Path.Combine(ContentDirectory.FullName, "exceptions.log.txt"));
+            errorWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, ExceptionsLogFileName), DoContinue);
             log4net.LogManager.SetTextWriter(errorWriter);
         }
 
@@ -389,7 +451,8 @@ namespace nlptextdoc.extract.html
         public void ExtractNLPTextDocuments()
         {
             //This is synchronous, it will not go to the next line until the crawl has completed
-            Console.WriteLine(">>> " + RootUri);
+            Console.WriteLine(">>> From : " + RootUri);
+            Console.WriteLine(">>> To   : " + ContentDirectory);
             Console.WriteLine();
 
             Perfs = new PerfMonitor();
