@@ -186,9 +186,25 @@ namespace nlptextdoc.extract.html
         // we compare only domain.com, and ignore all subdomains before
         private bool WebCrawler_IsInternalUri(Uri arg1, Uri arg2)
         {
-            return GetBaseDomain(arg1) == GetBaseDomain(arg2);
+            switch(ExtractorParams.Scope)
+            {
+                case ExtractionScope.Domain:
+                    return GetBaseDomain(arg1) == GetBaseDomain(arg2);
+                case ExtractionScope.SubDomain:
+                    return GetSubDomain(arg1) == GetSubDomain(arg2);
+                //case ExtractionScope.Path:
+                default:
+                    if(GetSubDomain(arg1) == GetSubDomain(arg2))
+                    {
+                        return arg1.AbsolutePath.StartsWith(GetRootPath(arg2.AbsolutePath));
+                    }
+                    else
+                    {
+                        return false;
+                    }
+            }            
         }
-
+        
         /// <summary>
         /// Returns the base domain from a domain name
         /// Example: http://www.west-wind.com returns west-wind.com
@@ -209,6 +225,31 @@ namespace nlptextdoc.extract.html
             {
                 return uri.Host;
             }
+        }
+
+        private static string GetSubDomain(Uri uri)
+        {
+            if (uri.HostNameType == UriHostNameType.Dns)
+            {
+                return uri.DnsSafeHost;
+            }
+            else
+            {
+                return uri.Host;
+            }
+        }
+        private string GetRootPath(string absolutePath)
+        {
+            int dotIndex = absolutePath.IndexOf('.');
+            if(dotIndex > 0)
+            {
+                int slashIndex = absolutePath.LastIndexOf('/', dotIndex);
+                if(slashIndex >= 0)
+                {
+                    return absolutePath.Substring(0, slashIndex+1);
+                }
+            }
+            return absolutePath;
         }
 
         // Trick to be able to share the same parsed Html document between Abot and HtmlDocumentConverter
@@ -305,8 +346,22 @@ namespace nlptextdoc.extract.html
                 storageDirectory.Create();
             }
 
-            var hostPath = HtmlFileUtils.GetPathValidChars(RootUri.Host);
-            ContentDirectory = new DirectoryInfo(Path.Combine(storageDirectory.FullName, hostPath));
+            string websitePath = null;
+            switch (ExtractorParams.Scope)
+            {
+                case ExtractionScope.Domain:
+                    websitePath = HtmlFileUtils.GetPathValidChars(GetBaseDomain(RootUri));
+                    break;
+                case ExtractionScope.SubDomain:
+                    websitePath = HtmlFileUtils.GetPathValidChars(GetSubDomain(RootUri));
+                    break;
+                //case ExtractionScope.Path:
+                default:
+                    websitePath = HtmlFileUtils.GetPathValidChars(GetSubDomain(RootUri) + GetRootPath(RootUri.AbsolutePath).Replace("/","_"));
+                    break;
+            }
+            
+            ContentDirectory = new DirectoryInfo(Path.Combine(storageDirectory.FullName, websitePath));
             if (!ContentDirectory.Exists)
             {
                 ContentDirectory.Create();
