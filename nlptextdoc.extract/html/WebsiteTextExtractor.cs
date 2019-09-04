@@ -131,7 +131,7 @@ namespace nlptextdoc.extract.html
             config.UseDefaultCredentials = false;
 
             crawler = new PoliteWebCrawler(config);
-            crawler.IsInternalUri(WebCrawler_IsInternalUri);
+            crawler.IsInternalUri((candidateUri,rootUri) => HtmlFileUtils.ShouldCrawlUri(ExtractorParams.Scope, candidateUri, rootUri));
             crawler.ShouldCrawlPageLinks(WebCrawler_ShouldCrawlPageLinks);
             crawler.PageCrawlCompletedAsync += WebCrawler_PageCrawlCompletedAsync;
 
@@ -178,79 +178,7 @@ namespace nlptextdoc.extract.html
                 var textSize = ((CssParseEvent)ev).StyleSheet.SourceCode.Text.Length;
                 Perfs.AddDownloadSize(textSize);
             }
-        }
-
-        // By default, Abot crawls pages exactly in the same domain and nothing else :
-        // subdomain.domain.com is not crawled if the root Uri is www.domain.com
-        // We want to crawl pages in the same BASE domain :
-        // we compare only domain.com, and ignore all subdomains before
-        private bool WebCrawler_IsInternalUri(Uri arg1, Uri arg2)
-        {
-            switch(ExtractorParams.Scope)
-            {
-                case ExtractionScope.Domain:
-                    return GetBaseDomain(arg1) == GetBaseDomain(arg2);
-                case ExtractionScope.SubDomain:
-                    return GetSubDomain(arg1) == GetSubDomain(arg2);
-                //case ExtractionScope.Path:
-                default:
-                    if(GetSubDomain(arg1) == GetSubDomain(arg2))
-                    {
-                        return arg1.AbsolutePath.StartsWith(GetRootPath(arg2.AbsolutePath));
-                    }
-                    else
-                    {
-                        return false;
-                    }
-            }            
-        }
-        
-        /// <summary>
-        /// Returns the base domain from a domain name
-        /// Example: http://www.west-wind.com returns west-wind.com
-        /// </summary>
-        private static string GetBaseDomain(Uri uri)
-        {
-            if (uri.HostNameType == UriHostNameType.Dns)
-            {
-                var domainName = uri.DnsSafeHost;
-                var tokens = domainName.Split('.');
-
-                if (tokens == null || tokens.Length < 3)
-                    return domainName;
-
-                return tokens[tokens.Length - 2] + "." + tokens[tokens.Length - 1];
-            }
-            else
-            {
-                return uri.Host;
-            }
-        }
-
-        private static string GetSubDomain(Uri uri)
-        {
-            if (uri.HostNameType == UriHostNameType.Dns)
-            {
-                return uri.DnsSafeHost;
-            }
-            else
-            {
-                return uri.Host;
-            }
-        }
-        private string GetRootPath(string absolutePath)
-        {
-            int dotIndex = absolutePath.IndexOf('.');
-            if(dotIndex > 0)
-            {
-                int slashIndex = absolutePath.LastIndexOf('/', dotIndex);
-                if(slashIndex >= 0)
-                {
-                    return absolutePath.Substring(0, slashIndex+1);
-                }
-            }
-            return absolutePath;
-        }
+        }        
 
         // Trick to be able to share the same parsed Html document between Abot and HtmlDocumentConverter
         // We need to activate Css dependencies loading to enable this
@@ -346,21 +274,7 @@ namespace nlptextdoc.extract.html
                 storageDirectory.Create();
             }
 
-            string websitePath = null;
-            switch (ExtractorParams.Scope)
-            {
-                case ExtractionScope.Domain:
-                    websitePath = HtmlFileUtils.GetPathValidChars(GetBaseDomain(RootUri));
-                    break;
-                case ExtractionScope.SubDomain:
-                    websitePath = HtmlFileUtils.GetPathValidChars(GetSubDomain(RootUri));
-                    break;
-                //case ExtractionScope.Path:
-                default:
-                    websitePath = HtmlFileUtils.GetPathValidChars(GetSubDomain(RootUri) + GetRootPath(RootUri.AbsolutePath).Replace("/","_"));
-                    break;
-            }
-            
+            string websitePath = HtmlFileUtils.GetWebsitePathFromUri(ExtractorParams.Scope, RootUri);            
             ContentDirectory = new DirectoryInfo(Path.Combine(storageDirectory.FullName, websitePath));
             if (!ContentDirectory.Exists)
             {
