@@ -1,6 +1,9 @@
 ﻿using Abot.Poco;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Abot.Core
 {
@@ -64,6 +67,42 @@ namespace Abot.Core
             _allowUriRecrawling = allowUriRecrawling;
             _crawledUrlRepo = crawledUrlRepo ?? new CompactCrawledUrlRepository();
             _pagesToCrawlRepo = pagesToCrawlRepo ?? new FifoPagesToCrawlRepository();
+        }
+
+        public static Scheduler Deserialize(Stream fs)
+        {
+            Scheduler scheduler = null;
+            try
+            {
+                BinaryFormatter formatter = new BinaryFormatter();
+                scheduler = (Scheduler)formatter.Deserialize(fs);
+            }
+            catch (SerializationException e)
+            {
+                throw new Exception("Failed to deserialize Scheduler. Reason: " + e.Message);
+            }
+            finally
+            {
+                fs.Close();
+            }
+            return scheduler;
+        }
+
+        public void Serialize(Stream fs)
+        {
+            BinaryFormatter formatter = new BinaryFormatter();
+            try
+            {
+                formatter.Serialize(fs, this);
+            }
+            catch (SerializationException e)
+            {
+                throw new Exception("Failed to serialize Scheduler. Reason: " + e.Message);                
+            }
+            finally
+            {
+                fs.Close();
+            }
         }
 
         public int Count

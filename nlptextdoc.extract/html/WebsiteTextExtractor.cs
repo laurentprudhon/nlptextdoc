@@ -1,4 +1,5 @@
-﻿using Abot.Crawler;
+﻿using Abot.Core;
+using Abot.Crawler;
 using Abot.Poco;
 using AngleSharp;
 using AngleSharp.Dom;
@@ -55,13 +56,13 @@ namespace nlptextdoc.extract.html
 
         private void Init()
         {
-            // Initialize the extraction task
-            ConfigureWebCrawler(ExtractorParams.RootUrl, ExtractorParams.MaxPageCount, ExtractorParams.MinCrawlDelay);
-            ConfigureHtmlParser();
-
             // Initialize the content directory and log files
-            ConfigureStorageDirectories(ExtractorParams.StorageDir);
+            ConfigureStorageDirectories();
             InitLogFiles();
+
+            // Initialize the extraction task
+            ConfigureWebCrawler();
+            ConfigureHtmlParser();
         }
 
         // Action requested : start a new extraction or continue a previous extraction
@@ -70,11 +71,9 @@ namespace nlptextdoc.extract.html
         // Store configuration params
         public WebsiteExtractorParams ExtractorParams { get; private set; }
 
-        // Root URI for web crawler
-        public Uri RootUri { get; private set; }
-
         // Web crawler engine
         private PoliteWebCrawler crawler;
+        private Scheduler scheduler;
 
         // Directory where the extracted text files will be stored
         public DirectoryInfo ContentDirectory { get; private set; }
@@ -82,14 +81,12 @@ namespace nlptextdoc.extract.html
         // Measuring perfs while crawling the website
         public PerfMonitor Perfs { get; private set; }
 
-        private void ConfigureWebCrawler(string rootURI, int maxPagesCount, int minCrawlDelay)
+        private void ConfigureWebCrawler()
         {
-            RootUri = new Uri(rootURI);
-
             CrawlConfiguration config = new CrawlConfiguration();
 
             config.MaxConcurrentThreads = Environment.ProcessorCount;
-            config.MaxPagesToCrawl = maxPagesCount;
+            config.MaxPagesToCrawl = ExtractorParams.MaxPageCount;
             config.MaxPagesToCrawlPerDomain = 0;
             config.MaxPageSizeInBytes = 0;
             config.UserAgentString = "Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko";
@@ -122,7 +119,7 @@ namespace nlptextdoc.extract.html
             config.IsRespectAnchorRelNoFollowEnabled = true;
             config.IsIgnoreRobotsDotTextIfRootDisallowedEnabled = false;
             config.RobotsDotTextUserAgentString = "bingbot";
-            config.MinCrawlDelayPerDomainMilliSeconds = minCrawlDelay;
+            config.MinCrawlDelayPerDomainMilliSeconds = ExtractorParams.MinCrawlDelay;
             config.MaxRobotsDotTextCrawlDelayInSeconds = 5;
 
             config.IsAlwaysLogin = false;
@@ -130,7 +127,18 @@ namespace nlptextdoc.extract.html
             config.LoginPassword = "";
             config.UseDefaultCredentials = false;
 
-            crawler = new PoliteWebCrawler(config);
+            if (!DoContinue)
+            {
+                scheduler = new Scheduler(config.IsUriRecrawlingEnabled, null, null);
+            }
+            else
+            {
+                using (FileStream fs = new FileStream(Path.Combine(ContentDirectory.FullName, LogsDirName, CheckpointFileName), FileMode.Open))
+                {
+                    scheduler = Scheduler.Deserialize(fs);
+                }
+            }
+            crawler = new PoliteWebCrawler(config, null, null, scheduler, null, null, null, null, null);
             crawler.IsInternalUri((candidateUri,rootUri) => HtmlFileUtils.ShouldCrawlUri(ExtractorParams.Scope, candidateUri, rootUri));
             crawler.ShouldCrawlPageLinks(WebCrawler_ShouldCrawlPageLinks);
             crawler.PageCrawlCompletedAsync += WebCrawler_PageCrawlCompletedAsync;
@@ -266,15 +274,15 @@ namespace nlptextdoc.extract.html
             return false;
         }
 
-        private void ConfigureStorageDirectories(string storagePath)
+        private void ConfigureStorageDirectories()
         {
-            var storageDirectory = new DirectoryInfo(storagePath);
+            var storageDirectory = new DirectoryInfo(ExtractorParams.StorageDir);
             if (!storageDirectory.Exists)
             {
                 storageDirectory.Create();
             }
 
-            string websitePath = HtmlFileUtils.GetWebsitePathFromUri(ExtractorParams.Scope, RootUri);            
+            string websitePath = HtmlFileUtils.GetWebsitePathFromUri(ExtractorParams.Scope, ExtractorParams.RootUrl);            
             ContentDirectory = new DirectoryInfo(Path.Combine(storageDirectory.FullName, websitePath));
             if (!ContentDirectory.Exists)
             {
@@ -286,12 +294,13 @@ namespace nlptextdoc.extract.html
 
         private StreamWriter logWriter;
         private StreamWriter errorWriter;
+        private DateTime lastCheckpointTime = DateTime.Now;
 
         public static string LogsDirName = "_nlptextdoc";
         public static string ParamsFileName = "params.txt";
         public static string HttpLogFileName = "httprequests.log.csv";
         public static string ExceptionsLogFileName = "exceptions.log.txt";
-        public static string CheckpointFileName = "checkpoint.txt";
+        public static string CheckpointFileName = "checkpoint.bin";
 
         private void InitLogFiles()
         {
@@ -420,13 +429,13 @@ namespace nlptextdoc.extract.html
         public void ExtractNLPTextDocuments()
         {
             //This is synchronous, it will not go to the next line until the crawl has completed
-            Console.WriteLine(">>> From : " + RootUri);
+            Console.WriteLine(">>> From : " + ExtractorParams.RootUrl);
             Console.WriteLine(">>> To   : " + ContentDirectory);
             Console.WriteLine();
 
             Perfs = new PerfMonitor();
             Perfs.WriteStatusHeader();
-            CrawlResult result = crawler.Crawl(RootUri);
+            CrawlResult result = crawler.Crawl(ExtractorParams.RootUrl);
             Perfs.EndTime = DateTime.Now;
             Console.WriteLine();
             Console.WriteLine();
@@ -477,15 +486,18 @@ namespace nlptextdoc.extract.html
                 LogRequest(crawledPage, percentUnique);
 
                 // Write the NLPTextDocument as a text file on disk
-                var fileInfo = HtmlFileUtils.GetFilePathFromUri(ContentDirectory, htmlDocumentUri);
-                if (!fileInfo.Directory.Exists)
+                if (percentUnique > 0)
                 {
-                    fileInfo.Directory.Create();
-                }
-                NLPTextDocumentWriter.WriteToFile(normalizedTextDocument, fileInfo.FullName);
+                    var fileInfo = HtmlFileUtils.GetFilePathFromUri(ContentDirectory, htmlDocumentUri);
+                    if (!fileInfo.Directory.Exists)
+                    {
+                        fileInfo.Directory.Create();
+                    }
+                    NLPTextDocumentWriter.WriteToFile(normalizedTextDocument, fileInfo.FullName);
 
-                Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
-                Perfs.WriteStatus();
+                    Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
+                    Perfs.WriteStatus();
+                }
                 
                 // Exit if the percentage of new text blocks 
                 // over the last 1000 pages is below 10%
@@ -494,6 +506,18 @@ namespace nlptextdoc.extract.html
                     Console.WriteLine();
                     Console.WriteLine("Extraction stopped because the % of new textblocks fell below 10%");
                     Environment.Exit(0);
+                }
+
+                lock (CheckpointFileName)
+                {
+                    if (DateTime.Now.Subtract(lastCheckpointTime).Minutes >= 1)
+                    {
+                        lastCheckpointTime = DateTime.Now;
+                        using (FileStream fs = new FileStream(Path.Combine(ContentDirectory.FullName, LogsDirName, CheckpointFileName), FileMode.Create))
+                        {
+                            scheduler.Serialize(fs);
+                        }
+                    }
                 }
             }
             catch (Exception ex)

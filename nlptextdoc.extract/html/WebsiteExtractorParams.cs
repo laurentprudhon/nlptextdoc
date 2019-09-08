@@ -37,7 +37,7 @@ namespace nlptextdoc.extract.html
         /// <summary>
         /// Root Url of the website (or subfolder of a website) you want to crawl
         /// </summary>
-        public string RootUrl;
+        public Uri RootUrl;
 
         /// <summary>
         /// Path to the disk directory where the text documents will be extracted
@@ -139,7 +139,7 @@ namespace nlptextdoc.extract.html
                     }
                     break;
                 case "rooturl":
-                    RootUrl = value;
+                    RootUrl = new Uri(value);
                     break;
                 case "storagedir":
                     StorageDir = value;

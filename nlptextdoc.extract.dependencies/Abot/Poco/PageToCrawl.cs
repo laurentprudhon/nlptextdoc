@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Dynamic;
+using System.Runtime.Serialization;
 
 namespace Abot.Poco
 {
@@ -17,7 +18,6 @@ namespace Abot.Poco
                 throw new ArgumentNullException("uri");
 
             Uri = uri;
-            PageBag = new ExpandoObject();
         }
 
         /// <summary>
@@ -65,10 +65,13 @@ namespace Abot.Poco
         /// </summary>
         public int CrawlDepth { get; set; }
 
+        [NonSerialized]
+        private dynamic _pageBag = new ExpandoObject();
+
         /// <summary>
         /// Can store values of any type. Useful for adding custom values to the CrawledPage dynamically from event subscriber code
-        /// </summary>
-        public dynamic PageBag { get; set; }
+        /// </summary>        
+        public dynamic PageBag { get { return _pageBag; } set { _pageBag = value; } }
 
         /// <summary>
         /// The uri that this page was redirected from. If null then it was not part of the redirect chain
