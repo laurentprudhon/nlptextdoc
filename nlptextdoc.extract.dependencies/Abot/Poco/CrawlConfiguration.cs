@@ -11,7 +11,7 @@ namespace Abot.Poco
             MaxConcurrentThreads = 10;
             UserAgentString = "Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko";
             RobotsDotTextUserAgentString = "abot";
-            MaxPagesToCrawl = 1000;
+            MaxPagesToCrawl = 0;
             DownloadableContentTypes = "text/html";
             ConfigurationExtensions = new Dictionary<string, string>();
             MaxRobotsDotTextCrawlDelayInSeconds = 5;

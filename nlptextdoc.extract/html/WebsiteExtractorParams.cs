@@ -53,7 +53,7 @@ namespace nlptextdoc.extract.html
         /// </summary>
         public int MaxPageCount;
         /// <summary>
-        /// Minimum percentage of unique text blocks extracted"
+        /// Minimum percentage of unique text blocks extracted (=10 for 10%)"
         /// </summary>
         public int MinUniqueText;
         /// <summary>
@@ -69,7 +69,7 @@ namespace nlptextdoc.extract.html
         public void WriteToFile(StreamWriter sw)
         {
             sw.WriteLine("# --- nlptextdoc config file ---");
-            sw.WriteLine("# First launch : " + DateTime.Now.ToString());
+            sw.WriteLine("# Launch time : " + DateTime.Now.ToString());
             sw.WriteLine();
             sw.WriteLine("# Decide what part of the rootUrl should be used to limit the extraction");
             sw.WriteLine("# (domain | subdomain | path)");

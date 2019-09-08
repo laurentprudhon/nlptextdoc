@@ -86,7 +86,7 @@ namespace nlptextdoc.extract.html
             CrawlConfiguration config = new CrawlConfiguration();
 
             config.MaxConcurrentThreads = Environment.ProcessorCount;
-            config.MaxPagesToCrawl = ExtractorParams.MaxPageCount;
+            config.MaxPagesToCrawl = 0;
             config.MaxPagesToCrawlPerDomain = 0;
             config.MaxPageSizeInBytes = 0;
             config.UserAgentString = "Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko";
@@ -295,6 +295,7 @@ namespace nlptextdoc.extract.html
         private StreamWriter logWriter;
         private StreamWriter errorWriter;
         private DateTime lastCheckpointTime = DateTime.Now;
+        private bool userCancelEventReceived = false;
 
         public static string LogsDirName = "_nlptextdoc";
         public static string ParamsFileName = "params.txt";
@@ -304,6 +305,12 @@ namespace nlptextdoc.extract.html
 
         private void InitLogFiles()
         {
+            Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) =>
+            {
+                e.Cancel = true;
+                userCancelEventReceived = true;
+            };
+
             var logsDirectory = new DirectoryInfo(Path.Combine(ContentDirectory.FullName, LogsDirName));
             if(!logsDirectory.Exists)
             {
@@ -429,6 +436,8 @@ namespace nlptextdoc.extract.html
         public void ExtractNLPTextDocuments()
         {
             //This is synchronous, it will not go to the next line until the crawl has completed
+            Console.WriteLine(DateTime.Now.ToString() + " : nlptextdoc extraction " + (DoContinue?"continued from previous execution":"started"));
+            Console.WriteLine();
             Console.WriteLine(">>> From : " + ExtractorParams.RootUrl);
             Console.WriteLine(">>> To   : " + ContentDirectory);
             Console.WriteLine();
@@ -441,9 +450,9 @@ namespace nlptextdoc.extract.html
             Console.WriteLine();
 
             if (result.ErrorOccurred)
-                Console.WriteLine(">>> Crawl of {0} completed with error: {1}", result.RootUri.AbsoluteUri, result.ErrorException.Message);
+                Console.WriteLine(Perfs.EndTime.ToString() + " : Extraction completed with fatal error \"{0}\"", result.ErrorException.Message);
             else
-                Console.WriteLine("<<< Crawl of {0} completed.", result.RootUri.AbsoluteUri);
+                Console.WriteLine(Perfs.EndTime.ToString() + " : Extraction completed.");
             Console.WriteLine();
         }
 
@@ -498,19 +507,41 @@ namespace nlptextdoc.extract.html
                     Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
                     Perfs.WriteStatus();
                 }
-                
-                // Exit if the percentage of new text blocks 
-                // over the last 1000 pages is below 10%
-                if(Perfs.PercentUniqueForLastDocs < 0.1)
+
+                // Test stopping conditions
+                bool stopCrawl = false;
+                string stopMessage = null;
+                if(userCancelEventReceived)
                 {
-                    Console.WriteLine();
-                    Console.WriteLine("Extraction stopped because the % of new textblocks fell below 10%");
-                    Environment.Exit(0);
+                    stopCrawl = true;
+                    stopMessage = "Extraction interrupted by the user";
+                }
+                else if (ExtractorParams.MaxDuration > 0 && TimeSpan.FromMilliseconds(Perfs.ElapsedTime).Minutes >= ExtractorParams.MaxDuration)
+                {
+                    stopCrawl = true;
+                    stopMessage = "Extraction stopped because the extraction duration exceeded " + ExtractorParams.MaxDuration + " minutes";
+                }                               
+                else if(ExtractorParams.MaxPageCount > 0 && Perfs.HtmlPagesCount >= ExtractorParams.MaxPageCount)
+                {
+                    stopCrawl = true;
+                    stopMessage = "Extraction stopped because the number of extracted pages exceeded " + ExtractorParams.MaxPageCount;
+                }
+                else if (ExtractorParams.MinUniqueText > 0 && Perfs.PercentUniqueForLastDocs < (ExtractorParams.MinUniqueText / 100.0))
+                {
+                    stopCrawl = true;
+                    stopMessage = "Extraction stopped because the % of new textblocks fell below " + ExtractorParams.MinUniqueText + "%";
+                }
+                else if (ExtractorParams.MaxSizeOnDisk > 0 && Perfs.TotalSizeOnDisk >= (ExtractorParams.MaxSizeOnDisk * 1024L * 1024L))
+                {
+                    stopCrawl = true;
+                    stopMessage = "Extraction stopped because the files size on disk exceeded " + ExtractorParams.MaxSizeOnDisk + " MB";
                 }
 
+                // Write one checkpoint every one minute 
+                // to enable the "continue" crawl feature
                 lock (CheckpointFileName)
                 {
-                    if (DateTime.Now.Subtract(lastCheckpointTime).Minutes >= 1)
+                    if (stopCrawl || DateTime.Now.Subtract(lastCheckpointTime).Minutes >= 1)
                     {
                         lastCheckpointTime = DateTime.Now;
                         using (FileStream fs = new FileStream(Path.Combine(ContentDirectory.FullName, LogsDirName, CheckpointFileName), FileMode.Create))
@@ -518,7 +549,16 @@ namespace nlptextdoc.extract.html
                             scheduler.Serialize(fs);
                         }
                     }
-                }
+
+                    if (stopCrawl)
+                    {
+                        Console.WriteLine();
+                        Console.WriteLine();
+                        Console.WriteLine(DateTime.Now.ToString() +" : " + stopMessage);
+                        Console.WriteLine();
+                        Environment.Exit(0);
+                    }
+                }                
             }
             catch (Exception ex)
             {
