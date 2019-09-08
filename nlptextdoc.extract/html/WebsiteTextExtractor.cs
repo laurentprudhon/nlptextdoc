@@ -114,6 +114,7 @@ namespace nlptextdoc.extract.html
             config.MinRetryDelayInMilliseconds = 0;
 
             config.IsRespectRobotsDotTextEnabled = true;
+            config.UrlPatternsToExclude = ExtractorParams.UrlPatternsToExclude;
             config.IsRespectMetaRobotsNoFollowEnabled = true;
             config.IsRespectHttpXRobotsTagHeaderNoFollowEnabled = true;
             config.IsRespectAnchorRelNoFollowEnabled = true;

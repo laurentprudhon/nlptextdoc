@@ -26,6 +26,7 @@ namespace nlptextdoc.extract.html
             MinUniqueText = 10;
             MaxSizeOnDisk = 0;
             MinCrawlDelay = 100;
+            UrlPatternsToExclude = new List<String>();
         }
 
         /// <summary>
@@ -66,6 +67,15 @@ namespace nlptextdoc.extract.html
         /// </summary>
         public int MinCrawlDelay;
 
+        /// <summary>
+        ///  List of Url patterns to exclude from the extraction
+        ///  https://developers.google.com/search/reference/robots_txt#url-matching-based-on-path-values
+        ///  Example :
+        ///  excludeUrls=/authors/
+        ///  excludeUrls=/*.php$
+        /// </summary>
+        public List<string> UrlPatternsToExclude;
+
         public void WriteToFile(StreamWriter sw)
         {
             sw.WriteLine("# --- nlptextdoc config file ---");
@@ -92,6 +102,16 @@ namespace nlptextdoc.extract.html
             sw.WriteLine("# Throttling");
             sw.WriteLine("# Delay in milliseconds between two requests sent to the website");
             sw.WriteLine("minCrawlDelay=" + MinCrawlDelay);
+            sw.WriteLine();
+            sw.WriteLine("# List of Url patterns to exclude from the extraction");
+            sw.WriteLine("# https://developers.google.com/search/reference/robots_txt#url-matching-based-on-path-values");
+            sw.WriteLine("# Example :");
+            sw.WriteLine("# excludeUrls=/authors/");
+            sw.WriteLine("# excludeUrls=/*.php$");
+            foreach(var pattern in UrlPatternsToExclude)
+            {
+                sw.WriteLine("excludeUrls="+pattern);
+            }
         }
 
         public static WebsiteExtractorParams ReadFromFile(StreamReader sr)
@@ -158,6 +178,9 @@ namespace nlptextdoc.extract.html
                     break;
                 case "mincrawldelay":
                     MinCrawlDelay = Int32.Parse(value);
+                    break;
+                case "excludeurls":
+                    UrlPatternsToExclude.Add(value);
                     break;
                 default:
                     throw new Exception("Invalid parameter at : " + keyValueParam);

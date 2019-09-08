@@ -179,6 +179,24 @@ namespace Robots
 
         }
 
+        /// <summary>
+        /// Programmatically add a disallow entry in addition to the robots.txt file
+        /// </summary>
+        public void AddDisallowEntry(string userAgent, string pattern)
+        {
+            var userAgentEntry = FindUserAgentEntry(userAgent);
+            if (userAgentEntry == null)
+            {
+                userAgentEntry = (UserAgentEntry)Entry.CreateEntry(EntryType.UserAgent);
+                userAgentEntry.UserAgent = userAgent;
+                _entries.Add(userAgentEntry);
+            }
+
+            var disallowEntry = (DisallowEntry)Entry.CreateEntry(EntryType.Disallow);
+            disallowEntry.Pattern = pattern;
+            userAgentEntry.AddEntry(disallowEntry);
+        }
+
         #endregion
 
         #region Methods: Allow

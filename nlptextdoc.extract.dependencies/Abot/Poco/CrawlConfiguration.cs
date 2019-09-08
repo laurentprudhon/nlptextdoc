@@ -189,6 +189,11 @@ namespace Abot.Poco
         public bool IsRespectRobotsDotTextEnabled { get; set; }
 
         /// <summary>
+        /// Additional Url patterns to exclude in addition to robots.txt
+        /// </summary>
+        public List<string> UrlPatternsToExclude { get; set; }
+
+        /// <summary>
         /// Whether the crawler should ignore links on pages that have a <meta name="robots" content="nofollow" /> tag
         /// </summary>
         public bool IsRespectMetaRobotsNoFollowEnabled { get; set; }

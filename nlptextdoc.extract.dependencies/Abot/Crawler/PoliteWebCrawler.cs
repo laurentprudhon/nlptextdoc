@@ -80,6 +80,23 @@ namespace Abot.Crawler
                 }
             }
 
+            // Additional url patterns to exclude
+            var urlPatternsToExclude = _crawlContext.CrawlConfiguration.UrlPatternsToExclude;
+            if (urlPatternsToExclude != null && urlPatternsToExclude.Count > 0)
+            {
+                if(_robotsDotText == null)
+                {
+                    _robotsDotText = new RobotsDotText(uri, String.Empty);
+                }
+                if (_robotsDotText.Robots is Robots.Robots)
+                {
+                    foreach (var pattern in urlPatternsToExclude)
+                    {
+                        ((Robots.Robots)_robotsDotText.Robots).AddDisallowEntry(_crawlContext.CrawlConfiguration.RobotsDotTextUserAgentString, pattern);
+                    }
+                }
+            }
+
             //Use whichever value is greater between the actual crawl delay value found, the max allowed crawl delay value or the minimum crawl delay required for every domain
             if (robotsDotTextCrawlDelayInSecs > 0 && robotsDotTextCrawlDelayInMillisecs > _crawlContext.CrawlConfiguration.MinCrawlDelayPerDomainMilliSeconds)
             {
