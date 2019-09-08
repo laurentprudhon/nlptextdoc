@@ -169,6 +169,28 @@ namespace Abot.Crawler
             return allowedByRobots && base.ShouldCrawlPage(pageToCrawl);
         }
 
+        protected override CrawlDecision ShouldDownloadPageContent(CrawledPage crawledPage)
+        {
+            // !! Detect silent redirects outside of the original domain !!
+            if(crawledPage.HttpWebResponse != null && crawledPage.Uri != null &&
+               crawledPage.HttpWebResponse.ResponseUri.DnsSafeHost != crawledPage.Uri.DnsSafeHost)
+            {
+                var sourceUri = crawledPage.Uri;
+                var redirectUri = crawledPage.HttpWebResponse.ResponseUri;
+
+                crawledPage.Uri = redirectUri;
+                crawledPage.IsInternal = IsInternalUri(redirectUri);
+                crawledPage.RedirectedFrom = new CrawledPage(sourceUri);
+
+                if(!ShouldCrawlPage(crawledPage))
+                {
+                    return new CrawlDecision { Allow = false, Reason = "Should not crawl this page - after silent redirect" };
+                }
+            }
+
+            return base.ShouldDownloadPageContent(crawledPage);
+        }
+
         /// <summary>
         /// Event occur after robots txt is parsed asynchroniously
         /// </summary>

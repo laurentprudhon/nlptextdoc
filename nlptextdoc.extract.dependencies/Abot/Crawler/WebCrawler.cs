@@ -900,18 +900,26 @@ namespace Abot.Crawler
 
         protected void Map(PageToCrawl src, CrawledPage dest)
         {
-            dest.Uri = src.Uri;
+            if (dest.RedirectedFrom == null)
+            {
+                dest.Uri = src.Uri;
+                dest.IsInternal = src.IsInternal;
+                dest.RedirectedFrom = src.RedirectedFrom;
+                dest.RedirectPosition = src.RedirectPosition;
+            }
+            else
+            {
+                dest.RedirectPosition = src.RedirectPosition + 1;
+            }
+
             dest.ParentUri = src.ParentUri;
             dest.IsRetry = src.IsRetry;
             dest.RetryAfter = src.RetryAfter;
             dest.RetryCount = src.RetryCount;
             dest.LastRequest = src.LastRequest;
             dest.IsRoot = src.IsRoot;
-            dest.IsInternal = src.IsInternal;
             dest.PageBag = CombinePageBags(src.PageBag, dest.PageBag);
-            dest.CrawlDepth = src.CrawlDepth;
-            dest.RedirectedFrom = src.RedirectedFrom;
-            dest.RedirectPosition = src.RedirectPosition;
+            dest.CrawlDepth = src.CrawlDepth;            
         }
 
         protected virtual dynamic CombinePageBags(dynamic pageToCrawlBag, dynamic crawledPageBag)

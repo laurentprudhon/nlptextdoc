@@ -245,6 +245,7 @@ namespace nlptextdoc.extract.html
 
         private void WriteError(string context, Exception e)
         {
+            Perfs.AddCrawlError();
             lock (exceptionsWriter)
             {
                 exceptionsWriter.WriteLine(DateTime.Now.ToLongTimeString());
@@ -366,7 +367,7 @@ namespace nlptextdoc.extract.html
             {
                 requestsWriter.Write(crawledPage.RequestStarted.ToString("HH:mm:ss.fff"));
                 requestsWriter.Write(";");
-                requestsWriter.Write(crawledPage.Uri.AbsoluteUri);
+                requestsWriter.Write(ToCsvSafeString(crawledPage.Uri.AbsoluteUri));
                 requestsWriter.Write(";");
                 if (crawledPage.HttpWebResponse != null)
                 {
@@ -392,9 +393,9 @@ namespace nlptextdoc.extract.html
                 requestsWriter.Write(";");
                 requestsWriter.Write(crawledPage.CrawlDepth);
                 requestsWriter.Write(";");
-                requestsWriter.Write(crawledPage.ParentUri != null ? crawledPage.ParentUri.AbsoluteUri : "");
+                requestsWriter.Write(crawledPage.ParentUri != null ? ToCsvSafeString(crawledPage.ParentUri.AbsoluteUri) : "");
                 requestsWriter.Write(";");
-                requestsWriter.Write(crawledPage.RedirectedFrom != null ? crawledPage.RedirectedFrom.Uri.AbsoluteUri : "");
+                requestsWriter.Write(crawledPage.RedirectedFrom != null ? ToCsvSafeString(crawledPage.RedirectedFrom.Uri.AbsoluteUri) : "");
                 if (crawledPage.IsRetry)
                 {
                     requestsWriter.Write(";");
@@ -500,7 +501,19 @@ namespace nlptextdoc.extract.html
                 if (crawledPage.WebException != null || crawledPage.HttpWebResponse.StatusCode != HttpStatusCode.OK)
                 {
                     LogRequest(crawledPage, 0);
-                    Perfs.AddCrawlError();
+                    
+                    if (crawledPage.WebException != null)
+                    {
+                        Perfs.AddCrawlError();
+                    }
+                    else if(crawledPage.HttpWebResponse != null)
+                    {
+                        int statusCode = (int)crawledPage.HttpWebResponse.StatusCode;
+                        if(statusCode != 404 && statusCode >= 400)
+                        {
+                            Perfs.AddCrawlError();
+                        }
+                    }
                     return;
                 }
 
