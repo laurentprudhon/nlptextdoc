@@ -46,8 +46,8 @@ namespace nlptextdoc.cli
             Console.WriteLine("The extraction can take a while :");
             Console.WriteLine("- your system can go to hibernation mode and resume without interrupting the crawl");
             Console.WriteLine("- your can even stop the crawl (Ctrl-C or shutdown) and continue it later where you left it");
-            Console.WriteLine("- the continue command will use checkpoints and params traces found in the \"_nlptextdoc\" subfolder");
-            Console.WriteLine("- the restart command will ignore checkpoints, start again at the root url, and overwrite everything");
+            Console.WriteLine("- the continue command will use checkpoint and config files found in the \"_nlptextdoc\" subfolder");
+            Console.WriteLine("- the restart command will ignore any checkpoint, start again at the root url, and overwrite everything");
             Console.WriteLine();
             Console.WriteLine("Specific syntax to continue or restart after a first try :");
             Console.WriteLine("nlptextdoc [continue|restart] [storageDirectory/rootUrlSubdir] [key=value optional params to override]");

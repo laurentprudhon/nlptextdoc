@@ -33,10 +33,10 @@ namespace nlptextdoc.extract.html
             DoContinue = doContinue;
 
             // Reload params file 
-            FileInfo paramFileInfo = new FileInfo(Path.Combine(storageDirForWebsite, LogsDirName, ParamsFileName));
+            FileInfo paramFileInfo = new FileInfo(Path.Combine(storageDirForWebsite, LogsDirName, ConfigFileName));
             if(!paramFileInfo.Exists)
             {
-                throw new Exception("No parameters file found at : " + paramFileInfo.FullName);
+                throw new Exception("No configuration file found at : " + paramFileInfo.FullName);
             }
             using (StreamReader sr = new StreamReader(paramFileInfo.FullName))
             {
@@ -244,15 +244,15 @@ namespace nlptextdoc.extract.html
 
         private void WriteError(string context, Exception e)
         {
-            lock (errorWriter)
+            lock (exceptionsWriter)
             {
-                errorWriter.WriteLine(DateTime.Now.ToLongTimeString());
-                errorWriter.WriteLine(context);
-                errorWriter.WriteLine("--------------------");
-                errorWriter.WriteLine(e.Message);
-                errorWriter.WriteLine(e.StackTrace);
-                errorWriter.WriteLine();
-                errorWriter.Flush();
+                exceptionsWriter.WriteLine(DateTime.Now.ToLongTimeString());
+                exceptionsWriter.WriteLine(context);
+                exceptionsWriter.WriteLine("--------------------");
+                exceptionsWriter.WriteLine(e.Message);
+                exceptionsWriter.WriteLine(e.StackTrace);
+                exceptionsWriter.WriteLine();
+                exceptionsWriter.Flush();
             }
         }
 
@@ -292,14 +292,16 @@ namespace nlptextdoc.extract.html
 
         // Write a log of the main http requests
 
-        private StreamWriter logWriter;
-        private StreamWriter errorWriter;
+        private StreamWriter requestsWriter;
+        private StreamWriter messagesWriter;
+        private StreamWriter exceptionsWriter;
         private DateTime lastCheckpointTime = DateTime.Now;
         private bool userCancelEventReceived = false;
 
         public static string LogsDirName = "_nlptextdoc";
-        public static string ParamsFileName = "params.txt";
-        public static string HttpLogFileName = "httprequests.log.csv";
+        public static string ConfigFileName = "config.txt";
+        public static string RequestsLogFileName = "requests.log.csv";
+        public static string MessagesLogFileName = "messages.log.txt";
         public static string ExceptionsLogFileName = "exceptions.log.txt";
         public static string CheckpointFileName = "checkpoint.bin";
 
@@ -317,102 +319,104 @@ namespace nlptextdoc.extract.html
                 logsDirectory.Create();
             }
 
-            using(var paramsWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, ParamsFileName), DoContinue))
+            using(var paramsWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, ConfigFileName), DoContinue))
             {
                 if (DoContinue) paramsWriter.WriteLine();
                 ExtractorParams.WriteToFile(paramsWriter);
             }
 
-            logWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, HttpLogFileName), DoContinue);
-            logWriter.Write("Clock");
-            logWriter.Write(";");
-            logWriter.Write("Url");
-            logWriter.Write(";");
-            logWriter.Write("Status code");
-            logWriter.Write(";");
-            logWriter.Write("Reponse time (ms)");
-            logWriter.Write(";");
-            logWriter.Write("Download time (ms)");
-            logWriter.Write(";");
-            logWriter.Write("Content size (bytes)");
-            logWriter.Write(";");
-            logWriter.Write("Unique text blocks (%)");
-            logWriter.Write(";");
-            logWriter.Write("Crawl depth");
-            logWriter.Write(";");
-            logWriter.Write("Parent Url");
-            logWriter.Write(";");
-            logWriter.Write("Redirected from");
-            logWriter.Write(";");
-            logWriter.Write("Retry count");
-            logWriter.Write(";");
-            logWriter.Write("Retry after (s)");
-            logWriter.Write(";");
-            logWriter.Write("Error message");
-            logWriter.WriteLine();
+            requestsWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, RequestsLogFileName), DoContinue);
+            requestsWriter.Write("Clock");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Url");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Status code");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Reponse time (ms)");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Download time (ms)");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Content size (bytes)");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Unique text blocks (%)");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Crawl depth");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Parent Url");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Redirected from");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Retry count");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Retry after (s)");
+            requestsWriter.Write(";");
+            requestsWriter.Write("Error message");
+            requestsWriter.WriteLine();
 
-            errorWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, ExceptionsLogFileName), DoContinue);
-            log4net.LogManager.SetTextWriter(errorWriter);
+            messagesWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, MessagesLogFileName), DoContinue);
+
+            exceptionsWriter = new StreamWriter(Path.Combine(logsDirectory.FullName, ExceptionsLogFileName), DoContinue);
+            log4net.LogManager.SetTextWriter(exceptionsWriter);
         }
 
         private void LogRequest(CrawledPage crawledPage, float percentUnique)
         {
-            lock (logWriter)
+            lock (requestsWriter)
             {
-                logWriter.Write(crawledPage.RequestStarted.ToString("HH:mm:ss.fff"));
-                logWriter.Write(";");
-                logWriter.Write(crawledPage.Uri.AbsoluteUri);
-                logWriter.Write(";");
+                requestsWriter.Write(crawledPage.RequestStarted.ToString("HH:mm:ss.fff"));
+                requestsWriter.Write(";");
+                requestsWriter.Write(crawledPage.Uri.AbsoluteUri);
+                requestsWriter.Write(";");
                 if (crawledPage.HttpWebResponse != null)
                 {
-                    logWriter.Write(crawledPage.HttpWebResponse.StatusCode);
+                    requestsWriter.Write(crawledPage.HttpWebResponse.StatusCode);
                 }
-                logWriter.Write(";");
-                logWriter.Write((int)crawledPage.Elapsed);
+                requestsWriter.Write(";");
+                requestsWriter.Write((int)crawledPage.Elapsed);
                 if (crawledPage.DownloadContentCompleted.HasValue)
                 {
-                    logWriter.Write(";");
-                    logWriter.Write((int)(crawledPage.DownloadContentCompleted.Value - crawledPage.DownloadContentStarted.Value).TotalMilliseconds);
-                    logWriter.Write(";");
-                    logWriter.Write(crawledPage.Content.Bytes.Length);
-                    logWriter.Write(";");
-                    logWriter.Write(percentUnique);
+                    requestsWriter.Write(";");
+                    requestsWriter.Write((int)(crawledPage.DownloadContentCompleted.Value - crawledPage.DownloadContentStarted.Value).TotalMilliseconds);
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(crawledPage.Content.Bytes.Length);
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(percentUnique);
                 }
                 else
                 {
-                    logWriter.Write(";");
-                    logWriter.Write(";");
-                    logWriter.Write(";");
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(";");
                 }
-                logWriter.Write(";");
-                logWriter.Write(crawledPage.CrawlDepth);
-                logWriter.Write(";");
-                logWriter.Write(crawledPage.ParentUri != null ? crawledPage.ParentUri.AbsoluteUri : "");
-                logWriter.Write(";");
-                logWriter.Write(crawledPage.RedirectedFrom != null ? crawledPage.RedirectedFrom.Uri.AbsoluteUri : "");
+                requestsWriter.Write(";");
+                requestsWriter.Write(crawledPage.CrawlDepth);
+                requestsWriter.Write(";");
+                requestsWriter.Write(crawledPage.ParentUri != null ? crawledPage.ParentUri.AbsoluteUri : "");
+                requestsWriter.Write(";");
+                requestsWriter.Write(crawledPage.RedirectedFrom != null ? crawledPage.RedirectedFrom.Uri.AbsoluteUri : "");
                 if (crawledPage.IsRetry)
                 {
-                    logWriter.Write(";");
-                    logWriter.Write(crawledPage.RetryCount);
-                    logWriter.Write(";");
-                    logWriter.Write(crawledPage.RetryAfter.Value);
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(crawledPage.RetryCount);
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(crawledPage.RetryAfter.Value);
                 }
                 else
                 {
-                    logWriter.Write(";");
-                    logWriter.Write(";");
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(";");
                 }
                 if (crawledPage.WebException != null)
                 {
-                    logWriter.Write(";");
-                    logWriter.Write(ToCsvSafeString(crawledPage.WebException.Message));
+                    requestsWriter.Write(";");
+                    requestsWriter.Write(ToCsvSafeString(crawledPage.WebException.Message));
                 }
                 else
                 {
-                    logWriter.Write(";");
+                    requestsWriter.Write(";");
                 }
-                logWriter.WriteLine();
-                logWriter.Flush();
+                requestsWriter.WriteLine();
+                requestsWriter.Flush();
             }
         }
 
@@ -423,11 +427,14 @@ namespace nlptextdoc.extract.html
 
         public void Dispose()
         {
-            logWriter.Dispose();
-            logWriter = null;
+            requestsWriter.Dispose();
+            requestsWriter = null;
 
-            errorWriter.Dispose();
-            errorWriter = null;
+            messagesWriter.Dispose();
+            messagesWriter = null;
+
+            exceptionsWriter.Dispose();
+            exceptionsWriter = null;
         }
 
         /// <summary>
@@ -435,25 +442,50 @@ namespace nlptextdoc.extract.html
         /// </summary>
         public void ExtractNLPTextDocuments()
         {
-            //This is synchronous, it will not go to the next line until the crawl has completed
-            Console.WriteLine(DateTime.Now.ToString() + " : nlptextdoc extraction " + (DoContinue?"continued from previous execution":"started"));
-            Console.WriteLine();
-            Console.WriteLine(">>> From : " + ExtractorParams.RootUrl);
-            Console.WriteLine(">>> To   : " + ContentDirectory);
-            Console.WriteLine();
-
             Perfs = new PerfMonitor();
-            Perfs.WriteStatusHeader();
+
+            DisplayMessages(WriteStartMessage);
+            DisplayMessages(Perfs.WriteStatusHeader);
+
+            // This is synchronous, it will not go to the next line until the crawl has completed
             CrawlResult result = crawler.Crawl(ExtractorParams.RootUrl);
             Perfs.EndTime = DateTime.Now;
-            Console.WriteLine();
-            Console.WriteLine();
 
+            // Write end status to log file
+            Perfs.WriteStatus(messagesWriter);
+
+            string endMessage = null;
             if (result.ErrorOccurred)
-                Console.WriteLine(Perfs.EndTime.ToString() + " : Extraction completed with fatal error \"{0}\"", result.ErrorException.Message);
+                endMessage = "Extraction completed with fatal error \"" + result.ErrorException.Message + "\"";
             else
-                Console.WriteLine(Perfs.EndTime.ToString() + " : Extraction completed.");
-            Console.WriteLine();
+                endMessage = "Extraction completed";
+            DisplayMessages(WriteEndMessage, endMessage);
+        }
+               
+        private delegate void WriteMessage(TextWriter wr, string message);
+
+        private void DisplayMessages(WriteMessage writeMessage, string message = null)
+        {
+            writeMessage(Console.Out, message);
+            writeMessage(messagesWriter, message);
+            messagesWriter.Flush();
+        }
+
+        private void WriteStartMessage(TextWriter wr, string message = null)
+        {
+            wr.WriteLine(DateTime.Now.ToString() + " : nlptextdoc extraction " + (DoContinue ? "continued from previous execution" : "started"));
+            wr.WriteLine();
+            wr.WriteLine(">>> From : " + ExtractorParams.RootUrl);
+            wr.WriteLine(">>> To   : " + ContentDirectory);
+            wr.WriteLine();
+        }
+
+        private static void WriteEndMessage(TextWriter wr, string endMessage)
+        {
+            wr.WriteLine();
+            wr.WriteLine();
+            wr.WriteLine(DateTime.Now.ToString() + " : " + endMessage);
+            wr.WriteLine();
         }
 
         // => called each time a page has been crawled by the web crawler
@@ -505,7 +537,6 @@ namespace nlptextdoc.extract.html
                     NLPTextDocumentWriter.WriteToFile(normalizedTextDocument, fileInfo.FullName);
 
                     Perfs.AddTextConversion(timer.ElapsedMilliseconds, fileInfo.Length);
-                    Perfs.WriteStatus();
                 }
 
                 // Test stopping conditions
@@ -537,6 +568,16 @@ namespace nlptextdoc.extract.html
                     stopMessage = "Extraction stopped because the files size on disk exceeded " + ExtractorParams.MaxSizeOnDisk + " MB";
                 }
 
+                // Write current status to screen (and to file if stopping)
+                if (!stopCrawl)
+                {
+                    Perfs.WriteStatus(Console.Out);
+                }
+                else
+                {
+                    DisplayMessages(Perfs.WriteStatus);
+                }
+
                 // Write one checkpoint every one minute 
                 // to enable the "continue" crawl feature
                 lock (CheckpointFileName)
@@ -552,10 +593,7 @@ namespace nlptextdoc.extract.html
 
                     if (stopCrawl)
                     {
-                        Console.WriteLine();
-                        Console.WriteLine();
-                        Console.WriteLine(DateTime.Now.ToString() +" : " + stopMessage);
-                        Console.WriteLine();
+                        DisplayMessages(WriteEndMessage, stopMessage);
                         Environment.Exit(0);
                     }
                 }                
@@ -567,7 +605,7 @@ namespace nlptextdoc.extract.html
                 // can't stop the whole crawl process                
                 WriteError("Error while processing the page : " + e.CrawledPage.HttpWebResponse.ResponseUri.AbsoluteUri,  ex);
             }
-        }
+        }        
 
         // -----------------------
         // DEBUG output statements
@@ -764,14 +802,14 @@ namespace nlptextdoc.extract.html
                 }
             }
 
-            public void WriteStatusHeader()
+            public void WriteStatusHeader(TextWriter wr, string message = null)
             {
-                Console.WriteLine("Time    | Pages | Errors | Unique  | Download   | Disk       | Parsing | Convert |");
+                wr.WriteLine("Time    | Pages | Errors | Unique  | Download   | Disk       | Parsing | Convert |");
             }
 
-            public void WriteStatus()
+            public void WriteStatus(TextWriter wr, string message = null)
             {
-                Console.Write("\r{0} | {1,5} | {2,5}  |  {3,3} %  | {4,7:0.0} Mb | {5,7:0.0} Mb | {6} | {7} |",
+                wr.Write("\r{0} | {1,5} | {2,5}  |  {3,3} %  | {4,7:0.0} Mb | {5,7:0.0} Mb | {6} | {7} |",
                     TimeSpan.FromMilliseconds(ElapsedTime).ToString(@"h\:mm\:ss"),
                     HtmlPagesCount,
                     CrawlErrorsCount,
