@@ -1,0 +1,301 @@
+﻿function test() {
+    window.textBuffer = ""
+    console.log("Starting DOM traversal ...");
+    visitBlock(document.body);
+    console.log("OK, result ready");
+    return window.textBuffer
+}
+
+String.prototype.capitalize = function () {
+    return this.replace(/(?:^|\s)\S/g, function (a) { return a.toUpperCase(); });
+};
+
+function visitBlock(node) {
+    if (isVisible(node)) {
+        if (node.nodeName == "IMG" || node.nodeName == "VIDEO" || node.nodeName == "EMBED" ||
+            node.nodeName == "TABLE" || node.nodeName == "THEAD" || node.nodeName == "TBODY" || node.nodeName == "TFOOT" ||
+            node.nodeName == "TR" || node.nodeName == "TH" || node.nodeName == "TD") {
+            window.textBuffer += "(" + node.nodeName + ")" + "\t" + getElementRectString(node) + "\n";
+        } else if ((node.nodeName == "INPUT") && ("placeholder" in node)) {
+            //console.log("writeplaceholder");
+            writePlaceHolderElement(node);
+        } else if ((node.nodeName == "IFRAME") && (node.contentDocument != null)) {
+            visitBlock(node.contentDocument.body);
+        }
+        if (node.hasChildNodes()) {
+            var inlineContext = [];
+            //console.log("start block under "+node.nodeName);
+            var childNodes = getChildNodesWithPseudoElements(node);
+            for (var i = 0; i < childNodes.length; i++) {
+                child = childNodes[i];
+                if (child.nodeType == Node.TEXT_NODE) {
+                    //console.log(child.nodeName + "1>>" + inlineContext.length);
+                    //console.log(child.nodeName + " -push1- " + child.nodeType);
+                    pushTextNodeToInlineContext(node, child, inlineContext);
+                    //console.log(inlineContext[0].nodeName + " -after push1- " + inlineContext[0].nodeType);
+                } else if (child.nodeType == Node.ELEMENT_NODE) {
+                    if (child.nodeName != "SCRIPT") {
+                        var childStyle = window.getComputedStyle(child, null);
+                        var displayStyle = childStyle.getPropertyValue('display');
+                        if (displayStyle && displayStyle.startsWith("inline")) {
+                            //console.log(child.nodeName + "2>>" + inlineContext.length);
+                            //console.log(child.nodeName +"=>"+ displayStyle);
+                            visitInline(child, inlineContext);
+                        } else {
+                            //console.log(child.nodeName + "3>>" + inlineContext.length);
+                            inlineContext = writeAndResetInlineContext(node, inlineContext);
+                            visitBlock(child);
+                        }
+                    }
+                }
+            }
+            writeAndResetInlineContext(node, inlineContext);
+        }
+    } else {
+        var childNodes = getChildNodesWithPseudoElements(node);
+        for (var i = 0; i < childNodes.length; i++) {
+            child = childNodes[i];
+            if (child.nodeType == Node.ELEMENT_NODE) {
+                visitBlock(child);
+            }
+        }
+    }
+}
+
+function pushTextNodeToInlineContext(node, child, inlineContext) {
+    if (child.nodeValue.length > 0) {
+        var nodeStyle = window.getComputedStyle(node, null);
+        var textTransformStyle = nodeStyle.getPropertyValue('text-transform');
+        if (textTransformStyle == "uppercase") {
+            child.nodeValue = child.nodeValue.toUpperCase();
+        } else if (textTransformStyle == "lowercase") {
+            child.nodeValue = child.nodeValue.toLowerCase();
+        } else if (textTransformStyle == "capitalize") {
+            child.nodeValue = child.nodeValue.capitalize();
+        }
+        inlineContext.push(child);
+    }
+}
+
+function visitInline(node, inlineContext) {
+    if (isVisible(node) && node.hasChildNodes()) {
+        var childNodes = getChildNodesWithPseudoElements(node);
+        for (var i = 0; i < childNodes.length; i++) {
+            child = childNodes[i];
+            if (child.nodeType == Node.TEXT_NODE) {
+                if (child.nodeValue.length > 0) {
+                    //console.log(child.nodeName + " -push2- " + child.nodeType);
+                    pushTextNodeToInlineContext(node, child, inlineContext);
+                }
+            } else if (child.nodeType == Node.ELEMENT_NODE) {
+                visitInline(child, inlineContext);
+            }
+        }
+    }
+}
+
+function getChildNodesWithPseudoElements(node) {
+    var childNodesWithPseudoElements = [];
+    var beforeTxt = window.getComputedStyle(node, "::before").getPropertyValue("content");
+    if (beforeTxt != "none" && isNotIcon(beforeTxt)) {
+        var beforeNode = document.createTextNode(beforeTxt.substring(1, beforeTxt.length - 1) + " ");
+        beforeNode.parent = node;
+        childNodesWithPseudoElements.push(beforeNode);
+    }
+    for (var i = 0; i < node.childNodes.length; i++) {
+        child = node.childNodes[i];
+        childNodesWithPseudoElements.push(child);
+    }
+    afterTxt = window.getComputedStyle(node, "::after").getPropertyValue("content");
+    if (afterTxt != "none" && isNotIcon(afterTxt)) {
+        var afterNode = document.createTextNode(" " + afterTxt.substring(1, afterTxt.length - 1));
+        afterNode.parent = node;
+        childNodesWithPseudoElements.push(afterNode);
+    }
+    return childNodesWithPseudoElements;
+}
+
+function isNotIcon(text) {
+    for (var i = 0; i < text.length; i++) {
+        var charCode = text.charCodeAt(i);
+        // Filter on valid ISO8859-1 codes
+        if (!((charCode >= 32 && charCode <=127) || (charCode >= 160 && charCode <= 255))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function writeAndResetInlineContext(node, inlineContext) {
+    if (inlineContext.length == 0) {
+        return inlineContext;
+    } else {
+        var start = 0;
+        var end = inlineContext.length;
+        for (var i = 0; i < inlineContext.length; i++) {
+            var textNode = inlineContext[i];
+            var childtext = textNode.nodeValue;
+            if (childtext.trim().length == 0) {
+                start++;
+            } else {
+                break;
+            }
+        }
+        for (var i = inlineContext.length - 1; i > start; i--) {
+            var textNode = inlineContext[i];
+            var childtext = textNode.nodeValue;
+            if (childtext.trim().length == 0) {
+                end--;
+            } else {
+                break;
+            }
+        }
+        var text = "";
+        var chars = "";
+        var spacescount = 0;
+        var previousLine = { index: 0, top: 0, height: 0 };
+        //console.log("---");
+        for (var i = start; i < end; i++) {
+            var textNode = inlineContext[i];
+            var childtext = textNode.nodeValue;
+            //console.log("node:["+textNode.nodeValue+"]");
+            if (childtext.trim().length == 0) {
+                spacescount++;
+            } else {
+                spacescount = 0;
+            }
+            if (spacescount == 1) {
+                childtext = " ";
+            }
+            if (spacescount <= 1) {
+                //console.log(i+":"+textNode+"|"+childtext);
+                text += childtext;
+                //console.log("text:[" + text + "]");
+                chars += getCharsRectsInTextNode(textNode, childtext, i == start, i == (end - 1), previousLine);
+            }
+        }
+        if (text.trim().length > 0) {
+            window.textBuffer += node.nodeName + "\t" + getElementRectString(node) + "\t" + text.trim() + "\n";
+            window.textBuffer += chars;
+        }
+        return [];
+    }
+}
+
+function writePlaceHolderElement(node) {
+    //console.log("pl=>" + node.placeholder + ":" + node.placeholder.length+"|"+node.class);
+    if (node.placeholder && node.placeholder.length > 0) {
+        window.textBuffer += node.nodeName + ":placeholder\t" + getElementRectString(node) + "\t" + node.placeholder + "\n";
+    }
+}
+
+function isVisible(elem) {
+    if (!(elem instanceof Element)) return false;
+    const style = getComputedStyle(elem);
+    if (style.display === 'none') return false;
+    if (style.visibility !== 'visible') return false;
+    if (style.opacity < 0.1) return false;
+    if (elem.offsetWidth + elem.offsetHeight + elem.getBoundingClientRect().height +
+        elem.getBoundingClientRect().width === 0) {
+        return false;
+    }
+    const elemCenter = {
+        x: elem.getBoundingClientRect().left + elem.offsetWidth / 2,
+        y: elem.getBoundingClientRect().top + elem.offsetHeight / 2
+    };
+    if (elemCenter.x < 0) return false;
+    if (elemCenter.x > (document.documentElement.clientWidth || window.innerWidth)) return false;
+    if (elemCenter.y < 0) return false;
+    if (elemCenter.y > (document.documentElement.clientHeight || window.innerHeight)) return false;
+    let pointContainer = document.elementFromPoint(elemCenter.x, elemCenter.y);
+    if (pointContainer != null) {
+        do {
+            if (pointContainer === elem) return true;
+        } while (pointContainer = pointContainer.parentNode);
+    }
+    return false;
+}
+
+function getCharsRectsInTextNode(textNode, text, isFirst, isLast, previousLine) {
+    var charRects = "";
+    if (textNode.parentNode != null) {
+        var start = 0;
+        var end = text.length;
+        if (isFirst) {
+            for (var i = 0; i < text.length; i++) {
+                if (text.charCodeAt(i) <= 32) {
+                    start++;
+                } else {
+                    break;
+                }
+            }
+        }
+        if (isLast) {
+            for (var i = text.length - 1; i > start; i--) {
+                if (text.charCodeAt(i) <= 32) {
+                    end--;
+                } else {
+                    break;
+                }
+            }
+        }
+        var range = document.createRange();
+        for (var i = start; i < end; i++) {
+            range.setStart(textNode, i);
+            range.setEnd(textNode, i + 1);
+            var rect = range.getBoundingClientRect();
+            if (rect.top > (previousLine.top + previousLine.height / 2)) {
+                charRects += "\tLine " + previousLine.index + "\n";
+                previousLine.index++;
+                previousLine.top = rect.top;
+                previousLine.height = rect.height;
+            } else if (rect.height > previousLine.height) {
+                previousLine.height = rect.height;
+            }
+            charRects += "\t\t" + text[i] + "\t" + getElementRectString(range) + "\n";
+        }
+    // Special case for pseudo-elements
+    } else if (textNode.parent != null) {
+        var parentRect = textNode.parent.getBoundingClientRect();
+        var range = document.createRange();
+        range.setStart(textNode.parent, 0);
+        range.setEnd(textNode.parent, 1);
+        var textRect = range.getBoundingClientRect();
+        var pseudoElementRect = null;
+        var pseudoElementWidth = parentRect.width - textRect.width;
+        if (parentRect.x == textRect.x) {
+            pseudoElementRect = new DOMRect(parentRect.x + parentRect.width - pseudoElementWidth, parentRect.y, pseudoElementWidth, parentRect.height);
+        } else {
+            pseudoElementRect = new DOMRect(parentRect.x, parentRect.y, pseudoElementWidth, parentRect.height);
+        }
+        charRects += "\t\t" + textNode.nodeValue.trim() + "\t" + getRectString(pseudoElementRect) + "\n";
+    }
+    return charRects;
+}
+
+function getElementRectString(element) {
+    var rect = element.getBoundingClientRect();
+    return getRectString(rect);
+}
+
+function getRectString(rect) {
+    return Math.round(rect.left) + "," + Math.round(rect.top) + "," + Math.round(rect.width) + "," + Math.round(rect.height);
+}
+
+function drawRectangle(x,y,width,height,color,opacity,borderStyle,borderWidth,borderColor) {
+    var overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.left = x + "px";
+    overlay.style.top = y + "px";
+    overlay.style.width = width + "px";
+    overlay.style.height = height + "px";
+    if (opacity > 0) {
+        overlay.style.backgroundColor = color;
+        overlay.style.opacity = opacity;
+    }
+    overlay.style.borderStyle = borderStyle;
+    overlay.style.borderWidth = borderWidth + "px";
+    overlay.style.borderColor = borderColor;
+    document.body.append(overlay);
+    return overlay;
+}
