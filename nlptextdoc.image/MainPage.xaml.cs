@@ -1,25 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
 using System.Threading.Tasks;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-using Windows.Graphics.Display;
 using Windows.Graphics.Imaging;
-using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
-using Windows.UI.Xaml.Navigation;
 
 // Pour plus d'informations sur le modèle d'élément Page vierge, consultez la page https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -34,7 +23,6 @@ namespace nlptextdoc.image
         {
             this.InitializeComponent();
             urlbox.Text = "https://www.creditmutuel.fr/fr/particuliers.html";
-            scriptbox.Text = "extractText(true)";
         }
 
         private void NavigateToUrl(object sender, RoutedEventArgs e)
@@ -44,16 +32,9 @@ namespace nlptextdoc.image
 
         private async void ExecuteJavascript(object sender, RoutedEventArgs e)
         {
-            var assembly = Assembly.GetExecutingAssembly();
-            var resourceName = "GenerateTextImagesUWP.extracttext2.js";
-            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            {
-                var reader = new StreamReader(stream);
-                string javascript = reader.ReadToEnd();
-                await webview.InvokeScriptAsync("eval", new[] { javascript });
-            }
-
-            result.Text = await webview.InvokeScriptAsync("eval", new[] { scriptbox.Text });
+            JavascriptInterop.InjectJavascriptDefinitions(webview);
+            result.Text = await JavascriptInterop.ExtractTextAsJson(webview, true);
+            var pageTree = JavascriptInterop.ConvertJsonToPageElements(result.Text);
         }
 
         private async void CaptureSnapshot(object sender, RoutedEventArgs e)
@@ -63,12 +44,12 @@ namespace nlptextdoc.image
             int contentWidth, contentHeight;
 
             originalWidth = webview.Width;
-            var widthString = await webview.InvokeScriptAsync("eval", new[] { "document.body.scrollWidth.toString()" });
+            var widthString = await JavascriptInterop.ExecuteJavascriptCode(webview, "document.body.scrollWidth.toString()");
             if (!int.TryParse(widthString, out contentWidth))
                 throw new Exception(string.Format("failure/width:{0}", widthString));
 
             originalHeight = webview.Height;
-            var heightString = await webview.InvokeScriptAsync("eval", new[] { "document.body.scrollHeight.toString()" });
+            var heightString = await JavascriptInterop.ExecuteJavascriptCode(webview, "document.body.scrollHeight.toString()");
             if (!int.TryParse(heightString, out contentHeight))
                 throw new Exception(string.Format("failure/height:{0}", heightString));
 
@@ -102,55 +83,27 @@ namespace nlptextdoc.image
 
             Thread.Sleep(200);
 
-            // Save to file
+            // Save image
             RenderTargetBitmap rtb = new RenderTargetBitmap();
             await rtb.RenderAsync(capture);
             var buffer = await rtb.GetPixelsAsync();
 
-            var file = await ApplicationData.Current.LocalFolder.CreateFileAsync("capture.png", CreationCollisionOption.ReplaceExisting);
-            /*var propertySet = new Windows.Graphics.Imaging.BitmapPropertySet();
-            var qualityValue = new Windows.Graphics.Imaging.BitmapTypedValue(
-                1.0, // Maximum quality
-                Windows.Foundation.PropertyType.Single
-                );
-            propertySet.Add("ImageQuality", qualityValue);*/
-            BitmapEncoder encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, await file.OpenAsync(FileAccessMode.ReadWrite)/*, propertySet*/);
-            encoder.SetPixelData(
-                BitmapPixelFormat.Bgra8,
-                BitmapAlphaMode.Straight,
-                (uint)contentWidth,
-                (uint)contentHeight,
-                DisplayInformation.GetForCurrentView().LogicalDpi,
-                DisplayInformation.GetForCurrentView().LogicalDpi,
-                buffer.ToArray());
-            await encoder.FlushAsync();
+            FilesManager.WriteImageToFile("capture.png", (uint)contentWidth, (uint)contentHeight, buffer.ToArray());
 
-            // Capture descriptions
+            // Capture description
+            JavascriptInterop.InjectJavascriptDefinitions(webview);
+            var description = await JavascriptInterop.ExtractTextAsJson(webview, true);
 
-            var assembly = Assembly.GetExecutingAssembly();
-            var resourceName = "nlptextdoc.image.extracttext.js";
-            using (Stream stream = assembly.GetManifestResourceStream(resourceName))
-            {
-                var reader = new StreamReader(stream);
-                string javascript = reader.ReadToEnd();
-                await webview.InvokeScriptAsync("eval", new[] { javascript });
-            }
-            var description = await webview.InvokeScriptAsync("eval", new[] { "extractText()" });
+            FilesManager.WriteTextToFile("capture.txt", description);
 
-            var textFile = await ApplicationData.Current.LocalFolder.CreateFileAsync("capture.txt", CreationCollisionOption.ReplaceExisting);
-            using (var stream = await textFile.OpenAsync(FileAccessMode.ReadWrite))
-            {
-                using (IOutputStream outputStream = stream.GetOutputStreamAt(0))
-                {
-                    using (DataWriter dataWriter = new DataWriter(outputStream))
-                    {
-                        dataWriter.WriteString(description);
-                        await dataWriter.StoreAsync();
-                        dataWriter.DetachStream();
-                    }
-                    await outputStream.FlushAsync();
-                }
-            }
+            Thread.Sleep(1000);
+
+            // Save image with debug info
+            rtb = new RenderTargetBitmap();
+            await rtb.RenderAsync(capture);
+            buffer = await rtb.GetPixelsAsync();
+
+            FilesManager.WriteImageToFile("capture_rects.png", (uint)contentWidth, (uint)contentHeight, buffer.ToArray());
         }
 
         static async Task<SoftwareBitmap> CreateScaledBitmapFromStreamAsync(int width, int height, IRandomAccessStream source)
