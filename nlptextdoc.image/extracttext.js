@@ -12,6 +12,14 @@
         }
         this.children.push(child);
     }
+
+    hasText() {
+        return "text" in this;
+    }
+
+    hasOneChild() {
+        return this.children != null && this.children.length == 1;
+    }
 }
 
 class TextBlock extends PageElement {
@@ -126,6 +134,22 @@ function createPageElement(domElt, type=null, text=null, words=null) {
     return pageElt;
 }
 
+function prunePageElements(pageEltsList) {
+    for (var i = 0; i < pageEltsList.length ; i++) {
+        var pageElt = pageEltsList[i];
+        var replacePageElt = pageElt;
+        while (!replacePageElt.hasText() && replacePageElt.hasOneChild()) {
+            replacePageElt = replacePageElt.children[0];
+        }
+        if (replacePageElt != pageElt) {
+            pageEltsList[i] = replacePageElt;
+        }
+        if (replacePageElt.children != null) {
+            prunePageElements(replacePageElt.children);
+        }
+    }
+}
+
 function getBoundingBox(elt) {
     var rect = elt.getBoundingClientRect();
     return new BoundingBox(Math.round(rect.left), Math.round(rect.top), Math.round(rect.width), Math.round(rect.height));
@@ -166,6 +190,7 @@ function extractText(debug=false) {
     window.pageRoot = createPageElement(htmlNode);
     window.pageElements.set(htmlNode, window.pageRoot);
     visitBlock(document.body);
+    prunePageElements(window.pageRoot.children);
     console.log("OK, result ready");
     return JSON.stringify(window.pageRoot);
 }
