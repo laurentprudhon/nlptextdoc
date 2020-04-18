@@ -17,12 +17,12 @@ namespace nlptextdoc.image
            javascriptDefinitions = FilesManager.ReadStringFromEmbeddedFile(JS_FILE_PATH);
         }
 
-        internal async static void InjectJavascriptDefinitions(WebView webview)
+        internal async static Task InjectJavascriptDefinitionsAsync(WebView webview)
         {
             await webview.InvokeScriptAsync("eval", new[] { javascriptDefinitions });
         }
 
-        internal async static Task<string> ExecuteJavascriptCode(WebView webview, string javascriptCode)
+        internal async static Task<string> ExecuteJavascriptCodeAsync(WebView webview, string javascriptCode)
         {
             var result = await webview.InvokeScriptAsync("eval", new[] { javascriptCode });
             return result;
@@ -31,10 +31,10 @@ namespace nlptextdoc.image
         internal async static Task<string> ExtractTextAsJson(WebView webview, bool displayColoredRectangles)
         {
             var extractTextCommand = String.Format(JS_COMMAND, displayColoredRectangles.ToString().ToLower());
-            var jsonResult = await ExecuteJavascriptCode(webview, extractTextCommand);
+            var jsonResult = await ExecuteJavascriptCodeAsync(webview, extractTextCommand);
             return jsonResult;
         }
-        internal async static Task<PageElement> ExtractTextAsPageElements(WebView webview, bool displayColoredRectangles)
+        internal async static Task<PageElement> ExtractTextAsPageElementsAsync(WebView webview, bool displayColoredRectangles)
         {
             var jsonResult = await ExtractTextAsJson(webview, displayColoredRectangles);
             var pageTree = ConvertJsonToPageElements(jsonResult);

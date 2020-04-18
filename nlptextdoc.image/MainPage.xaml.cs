@@ -1,124 +1,86 @@
 ﻿using System;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Threading;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Media.Imaging;
-
-// Pour plus d'informations sur le modèle d'élément Page vierge, consultez la page https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
 namespace nlptextdoc.image
 {
-    /// <summary>
-    /// Une page vide peut être utilisée seule ou constituer une page de destination au sein d'un frame.
-    /// </summary>
     public sealed partial class MainPage : Page
     {
+        // -- Configuration --
+        const string DATASET = "Banque";
+        const int STARTCOUNTER = 0;
+
         public MainPage()
         {
             this.InitializeComponent();
-            urlbox.Text = "https://www.creditmutuel.fr/fr/particuliers.html";
+
+            // Initialize URLs list and navigate to next URL
+            urlsToCapture = URLsSource.ReadDatasetURLs(DATASET).GetEnumerator();
+            for (int i = 0; i < STARTCOUNTER; i++) urlsToCapture.MoveNext();
+            NavigateToNextUrl(this, null);
         }
 
-        private void NavigateToUrl(object sender, RoutedEventArgs e)
+        // Internal state
+        IEnumerator<string> urlsToCapture;
+        int counter = 0;
+        string currentURL;
+
+        private void NavigateToNextUrl(object sender, RoutedEventArgs e)
         {
-            webview.Navigate(new Uri(urlbox.Text));
+            if (urlsToCapture.MoveNext())
+            {
+                counter++;
+                currentURL = urlsToCapture.Current;
+
+                counterView.Text = counter.ToString();
+                urlView.Text = currentURL;
+                RefreshCurrentUrl(sender, e);
+            }
+            else
+            {
+                Application.Current.Exit();
+            }
         }
 
-        private async void ExecuteJavascript(object sender, RoutedEventArgs e)
+        private void RefreshCurrentUrl(object sender, RoutedEventArgs e)
         {
-            JavascriptInterop.InjectJavascriptDefinitions(webview);
-            result.Text = await JavascriptInterop.ExtractTextAsJson(webview, true);
-            var pageTree = JavascriptInterop.ConvertJsonToPageElements(result.Text);
+            webview.Navigate(new Uri(currentURL));
         }
 
-        private async void CaptureSnapshot(object sender, RoutedEventArgs e)
+        private async void CaptureScreenshots(object sender, RoutedEventArgs e)
         {
-            // Get content properties
-            double originalWidth, originalHeight;
-            int contentWidth, contentHeight;
-
-            originalWidth = webview.Width;
-            var widthString = await JavascriptInterop.ExecuteJavascriptCode(webview, "document.body.scrollWidth.toString()");
-            if (!int.TryParse(widthString, out contentWidth))
-                throw new Exception(string.Format("failure/width:{0}", widthString));
-
-            originalHeight = webview.Height;
-            var heightString = await JavascriptInterop.ExecuteJavascriptCode(webview, "document.body.scrollHeight.toString()");
-            if (!int.TryParse(heightString, out contentHeight))
-                throw new Exception(string.Format("failure/height:{0}", heightString));
-
-            var originalVisibilty = webview.Visibility;
-
-            // Resize to content size
-            webview.Width = contentWidth;
-            webview.Height = contentHeight;
-            webview.Visibility = Visibility.Visible;
-
-            // Capture picture in memory
-            //InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream();
-            //await webview.CapturePreviewToStreamAsync(stream);
-            var brush = new WebViewBrush();
-            brush.Stretch = Stretch.Uniform;
-            brush.AlignmentY = AlignmentY.Top;
-            brush.SetSource(webview);
-            brush.Redraw();
-
-            Thread.Sleep(200);
-
-            // Display in Rectangle
-            capture.Width = contentWidth;
-            capture.Height = contentHeight;
-            capture.Fill = brush;
-
-            /*// Reset to original size
-            webview.Width = originalWidth;
-            webview.Height = originalHeight;
-            webview.Visibility = originalVisibilty;*/
-
-            Thread.Sleep(200);
-
-            // Save image
-            RenderTargetBitmap rtb = new RenderTargetBitmap();
-            await rtb.RenderAsync(capture);
-            var buffer = await rtb.GetPixelsAsync();
-
-            FilesManager.WriteImageToFile("capture.png", (uint)contentWidth, (uint)contentHeight, buffer.ToArray());
-
-            // Capture description
-            JavascriptInterop.InjectJavascriptDefinitions(webview);
-            var description = await JavascriptInterop.ExtractTextAsJson(webview, true);
-
-            FilesManager.WriteTextToFile("capture.txt", description);
-
-            Thread.Sleep(1000);
-
-            // Save image with debug info
-            rtb = new RenderTargetBitmap();
-            await rtb.RenderAsync(capture);
-            buffer = await rtb.GetPixelsAsync();
-
-            FilesManager.WriteImageToFile("capture_rects.png", (uint)contentWidth, (uint)contentHeight, buffer.ToArray());
+            await DoCaptureScreenshots();
         }
 
-        static async Task<SoftwareBitmap> CreateScaledBitmapFromStreamAsync(int width, int height, IRandomAccessStream source)
+        private async void CaptureScreenshotsAndNavigateToNextURL(object sender, RoutedEventArgs e)
         {
-            BitmapDecoder decoder = await BitmapDecoder.CreateAsync(source);
-            BitmapTransform transform = new BitmapTransform();
-            transform.ScaledHeight = (uint)height;
-            transform.ScaledWidth = (uint)width;
-            var bitmap = await decoder.GetSoftwareBitmapAsync(
-                BitmapPixelFormat.Bgra8,
-                BitmapAlphaMode.Straight,
-                transform,
-                ExifOrientationMode.RespectExifOrientation,
-                ColorManagementMode.DoNotColorManage);
-            return bitmap;
+            await DoCaptureScreenshots();
+            NavigateToNextUrl(sender, e);
+        }
+
+        private async Task DoCaptureScreenshots()
+        {
+            // Get view and content dimensions
+            var viewDimensions = ScreenCapture.GetViewDimensions(webview);
+            var contentDimensions = await ScreenCapture.GetContentDimensionsAsync(webview);
+
+            // Resize view to content size
+            ScreenCapture.SetViewDimensions(webview, contentDimensions);
+
+            // Capture a screenshot
+            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, capture);
+
+            // Capture a description of all chars/words/lines/blocks bounding boxes
+            // Draw all these bounding boxes on the screen
+            await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview);
+
+            // Capture a new screenshot
+            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, captureBoxes, "boxes");
+
+            // Reset view to its original size
+            ScreenCapture.SetViewDimensions(webview, viewDimensions);
         }
     }
 }

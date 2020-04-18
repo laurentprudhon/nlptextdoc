@@ -34,20 +34,24 @@ namespace nlptextdoc.image
         {
             using (var reader = OpenReaderForEmbeddedFile(relativeFilePath))
             {
-                yield return reader.ReadLine();
+                string line = null;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    yield return line;
+                }
             }
         }
 
-        internal async static Task<StorageFolder> GetOutputFolder()
+        internal async static Task<StorageFolder> GetOutputFolderAsync()
         {
             var picturesFolder = KnownFolders.SavedPictures;
             var outputFolder = await picturesFolder.CreateFolderAsync(OUTPUT_DIR, CreationCollisionOption.OpenIfExists);
             return outputFolder;
         }
 
-        internal static async void WriteTextToFile(string fileName, string text)
+        internal static async Task WriteTextToFileAsync(string fileName, string text)
         {
-            var outputFolder = await GetOutputFolder();
+            var outputFolder = await GetOutputFolderAsync();
             var textFile = await outputFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
             using (var stream = await textFile.OpenAsync(FileAccessMode.ReadWrite))
             {
@@ -64,9 +68,9 @@ namespace nlptextdoc.image
             }
         }
 
-        internal static async void WriteImageToFile(string fileName, uint width, uint height, byte[] pixels)
+        internal static async Task WriteImageToFileAsync(string fileName, uint width, uint height, byte[] pixels)
         {
-            var outputFolder = await GetOutputFolder();
+            var outputFolder = await GetOutputFolderAsync();
             var imageFile = await outputFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
 
             /*var propertySet = new Windows.Graphics.Imaging.BitmapPropertySet();
