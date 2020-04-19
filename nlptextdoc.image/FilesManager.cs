@@ -1,4 +1,7 @@
-﻿using System;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -73,12 +76,9 @@ namespace nlptextdoc.image
             var outputFolder = await GetOutputFolderAsync();
             var imageFile = await outputFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
 
-            /*var propertySet = new Windows.Graphics.Imaging.BitmapPropertySet();
-            var qualityValue = new Windows.Graphics.Imaging.BitmapTypedValue(1.0, Windows.Foundation.PropertyType.Single);
-            propertySet.Add("ImageQuality", qualityValue);*/
             BitmapEncoder encoder = await BitmapEncoder.CreateAsync(
                 BitmapEncoder.PngEncoderId, 
-                await imageFile.OpenAsync(FileAccessMode.ReadWrite)/*, propertySet*/);
+                await imageFile.OpenAsync(FileAccessMode.ReadWrite));
             
             encoder.SetPixelData(
                 BitmapPixelFormat.Bgra8,
@@ -89,6 +89,23 @@ namespace nlptextdoc.image
                 DisplayInformation.GetForCurrentView().LogicalDpi,
                 pixels);
             await encoder.FlushAsync();
+        }
+
+        internal static async Task WriteImageToFileAsync(string fileName, Image<Gray8> image, PngBitDepth bitDepth = PngBitDepth.Bit1)
+        {
+            var outputFolder = await GetOutputFolderAsync();
+            var imageFile = await outputFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
+            using (var stream = await imageFile.OpenAsync(FileAccessMode.ReadWrite))
+            {
+                using (IOutputStream outputStream = stream.GetOutputStreamAt(0))
+                {
+                    var encoder = new PngEncoder();
+                    encoder.ColorType = PngColorType.Grayscale;
+                    encoder.BitDepth = bitDepth;
+                    image.Save(outputStream.AsStreamForWrite(), encoder);
+                    await outputStream.FlushAsync();
+                }
+            }
         }
     }
 }

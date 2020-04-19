@@ -6,6 +6,14 @@ using System.Threading.Tasks;
 
 namespace nlptextdoc.image
 {
+    public enum BoundingBoxType
+    {
+        TextBlock,
+        TextLine,
+        Word,
+        Char
+    }
+
     public class PageElement
     {
         public string tagName;

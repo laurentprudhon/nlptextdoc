@@ -38,7 +38,7 @@ namespace nlptextdoc.image
             return (contentWidth, contentHeight);
         }
 
-        internal static async Task CreateAndSaveScreenshotAsync(WebView webview, Rectangle screenshot, string nameSuffix = "screen")
+        internal static async Task CreateAndSaveScreenshotAsync(WebView webview, Rectangle screenshot, string fileName, string nameSuffix = "screen")
         {
             // Capture picture in memory
             var brush = new WebViewBrush();
@@ -57,29 +57,21 @@ namespace nlptextdoc.image
             await rtb.RenderAsync(screenshot);
             var buffer = await rtb.GetPixelsAsync();
 
-            // Get unique file name from current URL
-            string fileName = await GetUniqueFileNameFromURLAsync(webview);
-
             // Write pixels to disk
             await FilesManager.WriteImageToFileAsync(fileName + "_" + nameSuffix + ".png", (uint)screenshot.Width, (uint)screenshot.Height, buffer.ToArray());
         }
 
-        internal static async Task CreateAndSaveTextBoundingBoxes(WebView webview)
+        internal static async Task<PageElement> CreateAndSaveTextBoundingBoxes(WebView webview, string fileName)
         {
             // Extraction json description of all text bounding boxes
             await JavascriptInterop.InjectJavascriptDefinitionsAsync(webview);
             var textBoundingBoxes = await JavascriptInterop.ExtractTextAsJson(webview, true);
 
             // Write json description to disk
-            string fileName = await GetUniqueFileNameFromURLAsync(webview);
-            await FilesManager.WriteTextToFileAsync(fileName + ".json", textBoundingBoxes);
-        }
+            await FilesManager.WriteTextToFileAsync(fileName + "_boxes.json", textBoundingBoxes);
 
-        private static async Task<string> GetUniqueFileNameFromURLAsync(WebView webview)
-        {
-            var url = await JavascriptInterop.ExecuteJavascriptCodeAsync(webview, "document.location.href");
-            var fileName = HtmlFileUtils.GetFileNameFromUri(url);
-            return fileName;
+            // Return .NET object tree version
+            return JavascriptInterop.ConvertJsonToPageElements(textBoundingBoxes);
         }
     }
 }

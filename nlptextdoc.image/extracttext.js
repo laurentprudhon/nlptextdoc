@@ -29,7 +29,6 @@ class TextBlock extends PageElement {
         this.text = text;
         this.lines = createLinesFromWords(words);
         if (window.drawRectangles) {
-            console.log("> " + this.tagName + "." + this.classNames + " " + this.text);
             drawRectangle(this.boundingBox, "white", 0, "solid", 1, "red");
         }
     }
@@ -88,10 +87,10 @@ class TextLabel extends PageElement {
 
 class BoundingBox {
     constructor(x, y, width, height) {
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
+        this.x = Math.round(x);
+        this.y = Math.round(y);
+        this.width = Math.round(width);
+        this.height = Math.round(height);
     }
 }
 
@@ -152,7 +151,7 @@ function prunePageElements(pageEltsList) {
 
 function getBoundingBox(elt) {
     var rect = elt.getBoundingClientRect();
-    return new BoundingBox(Math.round(rect.left), Math.round(rect.top), Math.round(rect.width), Math.round(rect.height));
+    return new BoundingBox(rect.left, rect.top, rect.width, rect.height);
 }
 
 function createLinesFromWords(words) {
@@ -324,7 +323,7 @@ function createWord(textNode, wordStartIndex, wordEndIndex) {
                 var letter = new Letter(textNode.nodeValue.charAt(i),box);
                 letters.push(letter);
             }
-            // Special case for pseudo-elements
+        // Special case for pseudo-elements
         } else if (textNode.parent != null) {
             var parentRect = textNode.parent.getBoundingClientRect();
             var range = document.createRange();
@@ -333,13 +332,15 @@ function createWord(textNode, wordStartIndex, wordEndIndex) {
             var textRect = range.getBoundingClientRect();
             var pseudoElementWidth = parentRect.width - textRect.width;
             var box = null;
-            if (parentRect.x == textRect.x) {
-                box = new BoundingBox(parentRect.x + parentRect.width - pseudoElementWidth, parentRect.y, pseudoElementWidth, parentRect.height);
+            if (parentRect.left == textRect.left) {
+                box = new BoundingBox(parentRect.left + parentRect.width - pseudoElementWidth, parentRect.top, pseudoElementWidth, parentRect.height);
             } else {
-                box = new BoundingBox(parentRect.x, parentRect.y, pseudoElementWidth, parentRect.height);
+                box = new BoundingBox(parentRect.left, parentRect.top, pseudoElementWidth, parentRect.height);
             }
-            var letter = new Letter(textNode.nodeValue.trim(),box);
-            letters.push(letter);
+            if (isFinite(box.x) && isFinite(box.y) && isFinite(box.width) && isFinite(box.height)) {
+                var letter = new Letter(textNode.nodeValue.trim(), box);
+                letters.push(letter);
+            }
         }
         word = new Word(wordTxt, letters);
     }

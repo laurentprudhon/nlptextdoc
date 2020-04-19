@@ -8,7 +8,7 @@ namespace nlptextdoc.image
 {
     static class HtmlFileUtils
     {        
-        internal static string GetFileNameFromUri(string uriString)
+        internal static string GetFileNameFromUri(string uriString, int maxLength = 100)
         {
             StringBuilder filePath = new StringBuilder();
 
@@ -42,7 +42,7 @@ namespace nlptextdoc.image
             }
             filePath.Append(GetPathValidChars(fileName));
 
-            return filePath.ToString().Replace('/','_');
+            return filePath.ToString(0, filePath.Length>maxLength?maxLength:filePath.Length).Replace('/','_');
         }
 
         private static char[] invalidChars;

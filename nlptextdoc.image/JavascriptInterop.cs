@@ -45,5 +45,12 @@ namespace nlptextdoc.image
         {
             return JsonConvert.DeserializeObject<PageElement>(jsonResult);
         }
+
+        internal static async Task<string> GetUniqueFileNameFromURLAsync(WebView webview)
+        {
+            var url = await JavascriptInterop.ExecuteJavascriptCodeAsync(webview, "document.location.href");
+            var fileName = HtmlFileUtils.GetFileNameFromUri(url);
+            return fileName;
+        }
     }
 }

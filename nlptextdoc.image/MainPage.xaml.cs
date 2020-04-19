@@ -69,18 +69,25 @@ namespace nlptextdoc.image
             // Resize view to content size
             ScreenCapture.SetViewDimensions(webview, contentDimensions);
 
+            // Get unique file name for the current URL
+            var fileName = await JavascriptInterop.GetUniqueFileNameFromURLAsync(webview);
+            fileName = counter.ToString("D5") + "_" + fileName;
+
             // Capture a screenshot
-            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, capture);
+            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, capture, fileName);
 
             // Capture a description of all chars/words/lines/blocks bounding boxes
             // Draw all these bounding boxes on the screen
-            await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview);
+            var pageElementsTree = await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview, fileName);
 
             // Capture a new screenshot
             await ScreenCapture.CreateAndSaveScreenshotAsync(webview, captureBoxes, "boxes");
 
             // Reset view to its original size
             ScreenCapture.SetViewDimensions(webview, viewDimensions);
+
+            // Generate masks for training
+            await MaskGenerator.GenerateMasks(fileName, contentDimensions, pageElementsTree);
         }
     }
 }
