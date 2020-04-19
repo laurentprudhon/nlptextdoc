@@ -81,7 +81,7 @@ namespace nlptextdoc.image
             var pageElementsTree = await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview, fileName);
 
             // Capture a new screenshot
-            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, captureBoxes, "boxes");
+            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, captureBoxes, fileName, "boxes");
 
             // Reset view to its original size
             ScreenCapture.SetViewDimensions(webview, viewDimensions);
