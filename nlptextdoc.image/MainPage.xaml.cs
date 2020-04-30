@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 
@@ -10,7 +11,7 @@ namespace nlptextdoc.image
     {
         // -- Configuration --
         const string DATASET = "Banque";
-        const int STARTCOUNTER = 0;
+        const int STARTCOUNTER = 16;
 
         public MainPage()
         {
@@ -18,7 +19,11 @@ namespace nlptextdoc.image
 
             // Initialize URLs list and navigate to next URL
             urlsToCapture = URLsSource.ReadDatasetURLs(DATASET).GetEnumerator();
-            for (int i = 0; i < STARTCOUNTER; i++) urlsToCapture.MoveNext();
+            if (STARTCOUNTER > 0)
+            {
+                counter = STARTCOUNTER - 1;
+                for (int i = 0; i < counter; i++) urlsToCapture.MoveNext();
+            }
             NavigateToNextUrl(this, null);
         }
 
@@ -62,32 +67,40 @@ namespace nlptextdoc.image
 
         private async Task DoCaptureScreenshots()
         {
-            // Get view and content dimensions
-            var viewDimensions = ScreenCapture.GetViewDimensions(webview);
-            var contentDimensions = await ScreenCapture.GetContentDimensionsAsync(webview);
+            try
+            {
+                // Get view and content dimensions
+                var viewDimensions = ScreenCapture.GetViewDimensions(webview);
+                var contentDimensions = await ScreenCapture.GetContentDimensionsAsync(webview);
 
-            // Resize view to content size
-            ScreenCapture.SetViewDimensions(webview, contentDimensions);
+                // Resize view to content size
+                ScreenCapture.SetViewDimensions(webview, contentDimensions);
 
-            // Get unique file name for the current URL
-            var fileName = await JavascriptInterop.GetUniqueFileNameFromURLAsync(webview);
-            fileName = counter.ToString("D5") + "_" + fileName;
+                // Get unique file name for the current URL
+                var fileName = await JavascriptInterop.GetUniqueFileNameFromURLAsync(webview);
+                fileName = counter.ToString("D5") + "_" + fileName;
 
-            // Capture a screenshot
-            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, capture, fileName);
+                // Capture a screenshot
+                await ScreenCapture.CreateAndSaveScreenshotAsync(webview, capture, fileName);
 
-            // Capture a description of all chars/words/lines/blocks bounding boxes
-            // Draw all these bounding boxes on the screen
-            var pageElementsTree = await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview, fileName);
+                // Capture a description of all chars/words/lines/blocks bounding boxes
+                // Draw all these bounding boxes on the screen
+                var pageElementsTree = await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview, fileName);
 
-            // Capture a new screenshot
-            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, captureBoxes, fileName, "boxes");
+                // Capture a new screenshot
+                await ScreenCapture.CreateAndSaveScreenshotAsync(webview, captureBoxes, fileName, "boxes");
 
-            // Reset view to its original size
-            ScreenCapture.SetViewDimensions(webview, viewDimensions);
+                // Reset view to its original size
+                ScreenCapture.SetViewDimensions(webview, viewDimensions);
 
-            // Generate masks for training
-            await MaskGenerator.GenerateMasks(fileName, contentDimensions, pageElementsTree);
+                // Generate masks for training
+                await MaskGenerator.GenerateMasks(fileName, contentDimensions, pageElementsTree);
+            }
+            catch(Exception e)
+            {
+                var md = new MessageDialog(e.Message);
+                await md.ShowAsync();
+            }
         }
     }
 }
