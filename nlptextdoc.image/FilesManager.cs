@@ -71,7 +71,7 @@ namespace nlptextdoc.image
             }
         }
 
-        internal static async Task WriteImageToFileAsync(string fileName, uint width, uint height, byte[] pixels)
+        internal static async Task WriteImageToFileAsync(string fileName, int width, int height, byte[] pixels)
         {
             var outputFolder = await GetOutputFolderAsync();
             var imageFile = await outputFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
@@ -83,8 +83,8 @@ namespace nlptextdoc.image
             encoder.SetPixelData(
                 BitmapPixelFormat.Bgra8,
                 BitmapAlphaMode.Straight,
-                width,
-                height,
+                (uint)width,
+                (uint)height,
                 DisplayInformation.GetForCurrentView().LogicalDpi,
                 DisplayInformation.GetForCurrentView().LogicalDpi,
                 pixels);

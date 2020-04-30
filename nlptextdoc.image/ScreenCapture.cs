@@ -58,7 +58,7 @@ namespace nlptextdoc.image
             var buffer = await rtb.GetPixelsAsync();
 
             // Write pixels to disk
-            await FilesManager.WriteImageToFileAsync(fileName + "_" + nameSuffix + ".png", (uint)screenshot.Width, (uint)screenshot.Height, buffer.ToArray());
+            await FilesManager.WriteImageToFileAsync(fileName + "_" + nameSuffix + ".png", rtb.PixelWidth, rtb.PixelHeight, buffer.ToArray());
         }
 
         internal static async Task<PageElement> CreateAndSaveTextBoundingBoxes(WebView webview, string fileName)
