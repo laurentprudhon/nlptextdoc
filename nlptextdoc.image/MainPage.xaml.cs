@@ -11,7 +11,7 @@ namespace nlptextdoc.image
     {
         // -- Configuration --
         const string DATASET = "Banque";
-        const int STARTCOUNTER = 16;
+        const int STARTCOUNTER = 1;
 
         public MainPage()
         {
@@ -94,7 +94,7 @@ namespace nlptextdoc.image
                 ScreenCapture.SetViewDimensions(webview, viewDimensions);
 
                 // Generate masks for training
-                await MaskGenerator.GenerateMasks(fileName, contentDimensions, pageElementsTree);
+                //await MaskGenerator.GenerateMasks(fileName, contentDimensions, pageElementsTree);
             }
             catch(Exception e)
             {
