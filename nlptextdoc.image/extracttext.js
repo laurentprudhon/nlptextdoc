@@ -1,16 +1,24 @@
 ﻿function extractText(debug = false) {
-    console.log("Starting DOM traversal ...");
-    document.body.focus();
-    window.drawRectangles = debug;
-    window.altLetter = 0;
-    window.pageElements = new Map();
-    var htmlNode = document.children[0];
-    window.pageRoot = createPageElement(htmlNode);
-    window.pageElements.set(htmlNode, window.pageRoot);
-    visitBlock(document.body);
-    prunePageElements(window.pageRoot.children);
-    console.log("OK, result ready");
-    return JSON.stringify(window.pageRoot);
+    try {
+        console.log("Starting DOM traversal ...");
+        document.body.focus();
+        window.drawRectangles = debug;
+        window.altLetter = 0;
+        window.pageElements = new Map();
+        var htmlNode = document.children[0];
+        window.pageRoot = createPageElement(htmlNode);
+        window.pageElements.set(htmlNode, window.pageRoot);
+        visitBlock(document.body);
+        prunePageElements(window.pageRoot.children);
+        console.log("OK, result ready");
+        return JSON.stringify(window.pageRoot);
+    } catch (error) {
+        if (typeof (error.stack) === "undefined") {
+            return "ERROR:" + error;
+        } else {
+            return "ERROR:" + error.stack;
+        }
+    }
 }
 
 class PageElement {
@@ -209,8 +217,11 @@ function visitBlock(node, textBoundingRect = null) {
             }
         } else if (node.tagName == "INPUT" && (node.type == "submit" || node.type == "button") && node.value != "") {
             createPageElement(node, "TextLabel", node.value);
-        } else if ((node.tagName == "IFRAME") && (node.contentDocument != null)) {
-            visitBlock(node.contentDocument.body);
+        } else if (node.tagName == "IFRAME") {
+            // If the iframe points to a url in a different domain,
+            // any attempt to check for node.contentDocument
+            // will throw a security error which is impossible to catch
+            // => we can only ignore iframe contents ...
         } else if (node.hasChildNodes()) {
             var inlineContext = [];
             inlineContext.textBoundingRect = textBoundingRect;

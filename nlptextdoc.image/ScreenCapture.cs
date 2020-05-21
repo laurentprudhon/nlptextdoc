@@ -66,6 +66,10 @@ namespace nlptextdoc.image
             // Extraction json description of all text bounding boxes
             await JavascriptInterop.InjectJavascriptDefinitionsAsync(webview);
             var textBoundingBoxes = await JavascriptInterop.ExtractTextAsJson(webview, true);
+            if(textBoundingBoxes.StartsWith("ERROR:"))
+            {
+                throw new Exception("Javascript error : " + textBoundingBoxes.Substring(6));
+            }
 
             // Write json description to disk
             await FilesManager.WriteTextToFileAsync(fileName + "_boxes.json", textBoundingBoxes);
