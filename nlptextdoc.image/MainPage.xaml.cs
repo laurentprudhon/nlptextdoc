@@ -125,8 +125,23 @@ namespace nlptextdoc.image
         {
             do
             {
-                await DoCaptureScreenshots();
-                await DoNavigateToNextUrl();
+                try
+                {
+                    await DoCaptureScreenshots();
+                    await DoNavigateToNextUrl();
+                }
+                catch(Exception ex)
+                {
+                    if (INTERACTIVE)
+                    {
+                        var md = new MessageDialog(ex.Message);
+                        await md.ShowAsync();
+                    }
+                    else
+                    {
+                        FilesManager.WriteTextToFileAsync(counter.ToString("D5") + "_error.log", ex.Message);
+                    }
+                }
             } 
             while (!INTERACTIVE);
         }

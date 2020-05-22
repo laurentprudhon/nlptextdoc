@@ -13,7 +13,14 @@ namespace nlptextdoc.image
             {
                 foreach(var line in FilesManager.ReadLinesFromEmbeddedFile("Dataset."  + dataset + "_urls.csv"))
                 {
-                    yield return line;
+                    if (line.StartsWith('"'))
+                    {
+                        yield return line.Substring(1, line.Length - 2);
+                    }
+                    else
+                    {
+                        yield return line;
+                    }
                 }
             }
         }
