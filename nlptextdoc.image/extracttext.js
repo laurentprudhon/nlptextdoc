@@ -99,6 +99,9 @@ class BoundingBox {
         this.y = Math.round(y);
         this.width = Math.round(width);
         this.height = Math.round(height);
+        if (!isFinite(x) || !isFinite(y) || !isFinite(width) || !isFinite(height)) {
+            throw new Error("Bounding box coordinates are not finite");
+        }
     }
 }
 
@@ -374,7 +377,8 @@ function createWord(textNode, wordStartIndex, wordEndIndex) {
             var parentRect = textNode.parent.getBoundingClientRect();
             var pseudoEltStyle = textNode.style;
             var wordBox = null;
-            if (pseudoEltStyle.position == "absolute") {
+            if (pseudoEltStyle.position == "absolute" && isFinite(intFromPixels(pseudoEltStyle.left)) && 
+                isFinite(intFromPixels(pseudoEltStyle.width)) && isFinite(intFromPixels(pseudoEltStyle.height))) {
                 if (textNode.sibling != null) {
                     if (textNode.before) {
                         range.setStart(textNode.sibling, 0);

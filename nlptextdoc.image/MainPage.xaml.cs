@@ -14,6 +14,7 @@ namespace nlptextdoc.image
         // -- Configuration --
         const string DATASET = "Banque";
         const int STARTCOUNTER = 1;
+        const bool INTERACTIVE = true;
 
         public MainPage()
         {
@@ -96,8 +97,12 @@ namespace nlptextdoc.image
 
         private async void CaptureScreenshotsAndNavigateToNextURL(object sender, RoutedEventArgs e)
         {
-            await DoCaptureScreenshots();
-            NavigateToNextUrl(sender, e);
+            do
+            {
+                await DoCaptureScreenshots();
+                NavigateToNextUrl(sender, e);
+            } 
+            while (!INTERACTIVE);
         }
 
         private async Task DoCaptureScreenshots()
@@ -114,6 +119,7 @@ namespace nlptextdoc.image
             fileName = counter.ToString("D5") + "_" + fileName;
 
             // Capture a screenshot
+            await ScreenCapture.CreateAndSaveScreenshotAsync(webview, capture, null, warmup:true); // necessary because sometimes screenshot alters layout
             await ScreenCapture.CreateAndSaveScreenshotAsync(webview, capture, fileName);
 
             try
@@ -127,8 +133,13 @@ namespace nlptextdoc.image
             }
             catch (Exception e)
             {
-                var md = new MessageDialog(e.Message);
-                await md.ShowAsync();
+                if (INTERACTIVE)
+                {
+                    var md = new MessageDialog(e.Message);
+                    await md.ShowAsync();
+                } else {
+                    FilesManager.WriteTextToFileAsync(fileName + "_error.log", e.Message);
+                }
             }
 
             // Reset view to its original size

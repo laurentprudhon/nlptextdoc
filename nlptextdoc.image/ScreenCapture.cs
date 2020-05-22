@@ -38,7 +38,7 @@ namespace nlptextdoc.image
             return (contentWidth, contentHeight);
         }
 
-        internal static async Task CreateAndSaveScreenshotAsync(WebView webview, Rectangle screenshot, string fileName, string nameSuffix = "screen")
+        internal static async Task CreateAndSaveScreenshotAsync(WebView webview, Rectangle screenshot, string fileName, string nameSuffix = "screen", bool warmup = false)
         {
             // Capture picture in memory
             var brush = new WebViewBrush();
@@ -58,7 +58,10 @@ namespace nlptextdoc.image
             var buffer = await rtb.GetPixelsAsync();
 
             // Write pixels to disk
-            await FilesManager.WriteImageToFileAsync(fileName + "_" + nameSuffix + ".png", rtb.PixelWidth, rtb.PixelHeight, buffer.ToArray());
+            if (!warmup)
+            {
+                await FilesManager.WriteImageToFileAsync(fileName + "_" + nameSuffix + ".png", rtb.PixelWidth, rtb.PixelHeight, buffer.ToArray());
+            }
         }
 
         internal static async Task<PageElement> CreateAndSaveTextBoundingBoxes(WebView webview, string fileName)
