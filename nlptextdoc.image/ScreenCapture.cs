@@ -11,11 +11,28 @@ namespace nlptextdoc.image
 {
     class ScreenCapture
     {
+        static Random rndgen = new Random();
+
+        internal static int GetRandowWidth()
+        {
+            int random = rndgen.Next(100);
+            // Market shares France April 2020
+            // excluding 300-400 feature phones resolutions
+            if (random < 7) return 768;
+            if (random < 11) return 1024;
+            if (random < 24) return 1280;
+            if (random < 43) return 1366;
+            if (random < 54) return 1440;
+            if (random < 63) return 1536;
+            if (random < 72) return 1600;
+            if (random < 75) return 1680;
+            /*if (random < 100)*/ return 1920;
+        }
+
         internal static (int width, int height) GetViewDimensions(WebView webview)
         {
             return ((int)webview.ActualWidth, (int)webview.ActualHeight);
         }
-
 
         internal static void SetViewDimensions(WebView webview, (int width, int height) dims)
         {

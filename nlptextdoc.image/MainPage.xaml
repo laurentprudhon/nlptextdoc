@@ -29,7 +29,7 @@
             <Button Width="80" Margin="2" Grid.Column="3" Click="CaptureScreenshotsAndNavigateToNextURL">Capture</Button>
             <Button Width="80" Margin="2" Grid.Column="4" Click="NavigateToNextUrl">Next</Button>
             <Button Width="80" Margin="2" Grid.Column="5" Click="CaptureScreenshots">Test</Button>
-            <Button Width="80" Margin="2" Grid.Column="6" Click="RefreshCurrentUrl">Refresh</Button>
+            <Button Width="80" Margin="2" Grid.Column="6" Click="RefreshWebView">Refresh</Button>
             <Button Width="80" Margin="2" Grid.Column="7" Click="NavigateToPreviousUrl">Previous</Button>
         </Grid>
         <Grid Width="Auto" Grid.Row="1">
@@ -38,8 +38,8 @@
                 <ColumnDefinition Width="200"/>
                 <ColumnDefinition Width="200"/>
             </Grid.ColumnDefinitions>
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="5" Grid.Column="0">
-                <WebView x:Name="webview"/>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto"  VerticalScrollBarVisibility="Auto" Height="850" Margin="5" Grid.Column="0">
+                    <WebView x:Name="webview"/>
             </ScrollViewer>
             <Viewbox Stretch="Uniform" Grid.Column="1">
                 <Rectangle x:Name="capture" />
