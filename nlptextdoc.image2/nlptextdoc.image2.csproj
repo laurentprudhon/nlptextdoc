@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Dataset\Assurance_urls.csv" />
+    <None Remove="Dataset\Banque_urls.csv" />
+    <None Remove="Dataset\Bourse_urls.csv" />
+    <None Remove="Dataset\Comparateur_urls.csv" />
+    <None Remove="Dataset\Crédit_urls.csv" />
+    <None Remove="Dataset\Forum_urls.csv" />
+    <None Remove="Dataset\Institution_urls.csv" />
+    <None Remove="Dataset\Presse_urls.csv" />
+    <None Remove="Dataset\SiteInfo_urls.csv" />
+    <None Remove="extracttext.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Dataset\Assurance_urls.csv" />
+    <EmbeddedResource Include="Dataset\Banque_urls.csv" />
+    <EmbeddedResource Include="Dataset\Bourse_urls.csv" />
+    <EmbeddedResource Include="Dataset\Comparateur_urls.csv" />
+    <EmbeddedResource Include="Dataset\Crédit_urls.csv" />
+    <EmbeddedResource Include="Dataset\Forum_urls.csv" />
+    <EmbeddedResource Include="Dataset\Institution_urls.csv" />
+    <EmbeddedResource Include="Dataset\Presse_urls.csv" />
+    <EmbeddedResource Include="Dataset\SiteInfo_urls.csv" />
+    <EmbeddedResource Include="extracttext.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="0.9.515-prerelease" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+  </ItemGroup>
+
+</Project>

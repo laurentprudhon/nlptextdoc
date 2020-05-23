@@ -1,0 +1,50 @@
+﻿<Window x:Class="nlptextdoc.image2.MainWindow" 
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:nlptextdoc.image2"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        mc:Ignorable="d"
+        Title="nlptextdoc.image2" Width="1680" Height="1000">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid Width="Auto" Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="50" />
+                <ColumnDefinition Width="60" />
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox VerticalAlignment="Center" x:Name="counterBox" Grid.Column="0" TextChanged="counterBox_TextChanged"/>
+            <TextBlock FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" x:Name="counterView" Grid.Column="1"/>
+            <TextBox VerticalAlignment="Center" x:Name="urlView" Grid.Column="2"/>
+            <Button Width="80" Margin="2" Grid.Column="3" Click="CaptureScreenshotsAndNavigateToNextURL">Capture</Button>
+            <Button Width="80" Margin="2" Grid.Column="4" Click="NavigateToNextUrl">Next</Button>
+            <Button Width="80" Margin="2" Grid.Column="5" Click="CaptureScreenshots">Test</Button>
+            <Button Width="80" Margin="2" Grid.Column="6" Click="RefreshWebView">Refresh</Button>
+            <Button Width="80" Margin="2" Grid.Column="7" Click="NavigateToPreviousUrl">Previous</Button>
+        </Grid>
+        <Grid Width="Auto" Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="1290" />
+            </Grid.ColumnDefinitions>
+            <Viewbox Stretch="Uniform" Grid.Column="0">
+                <Image x:Name="capture" />
+            </Viewbox>
+            <Viewbox Stretch="Uniform" Grid.Column="1">
+                <Image x:Name="captureBoxes" />
+            </Viewbox>
+            <wv2:WebView2 x:Name="webview" Margin="5" Grid.Column="2"/>
+        </Grid>
+    </Grid>
+</Window>

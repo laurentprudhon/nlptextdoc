@@ -1,0 +1,15 @@
+﻿// https://docs.microsoft.com/en-us/windows/communitytoolkit/controls/wpf-winforms/webview
+// https://github.com/SteveSandersonMS/WebWindow
+// https://blog.stevensanderson.com/2019/11/18/2019-11-18-webwindow-a-cross-platform-webview-for-dotnet-core/
+
+// https://docs.microsoft.com/en-us/uwp/api/windows.ui.xaml.controls.webview
+// https://docs.microsoft.com/en-us/windows/communitytoolkit/controls/wpf-winforms/webview
+
+// https://stackoverflow.com/questions/17049677/how-do-i-print-webview-content-in-a-windows-store-app
+// document.body.scrollWidth.toString()
+
+// https://stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
+// document.body.querySelector(".accroche").nodeType 1 element 3 text / childNodes / innerText
+// element.getBoundingClientRect() { x y width height } 
+
+// https://social.msdn.microsoft.com/Forums/windowsapps/en-US/c0a5a4b9-7911-4b1b-bffb-8cc201b8c939/uwpc-failure-to-set-visibility-from-code-quotwrong-threadquot?forum=wpdevelop
