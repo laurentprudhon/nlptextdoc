@@ -39,7 +39,7 @@
                 <ColumnDefinition Width="1290" />
             </Grid.ColumnDefinitions>
             <Viewbox Stretch="Uniform" Grid.Column="0">
-                <Image x:Name="capture" />
+                <Image x:Name="captureScreen" />
             </Viewbox>
             <Viewbox Stretch="Uniform" Grid.Column="1">
                 <Image x:Name="captureBoxes" />

@@ -2,8 +2,6 @@
 using Microsoft.Web.WebView2.Wpf;
 using System;
 using System.Threading.Tasks;
-using System.Windows.Controls;
-using System.Windows.Media.Imaging;
 
 namespace nlptextdoc.image2
 {
@@ -53,35 +51,23 @@ namespace nlptextdoc.image2
             return (contentWidth, contentHeight);
         }
 
-        internal static async Task CreateAndSaveScreenshotAsync(CoreWebView2 webview, Image screenshot, string fileName, string nameSuffix = "screen", bool warmup = false)
+        internal static async Task<string> CreateAndSaveScreenshotAsync(CoreWebView2 webview, string fileName, string nameSuffix = "screen")
         {
             // Capture and save screenshot to disk
-            var (filePath,stream) = FilesManager.GetStreamToWriteImage(fileName + "_" + nameSuffix + ".png");
-            using(stream)
+            var (filePath, stream) = FilesManager.GetStreamToWriteImage(fileName + "_" + nameSuffix + ".png");
+            using (stream)
             {
                 await webview.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, stream);
             }
-
-            // Display image from disk
-            BitmapImage image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.UriSource = new Uri(filePath);
-            image.EndInit();
-            screenshot.Source = image;
+            return filePath;
         }
 
         internal static async Task<PageElement> CreateAndSaveTextBoundingBoxes(CoreWebView2 webview, string fileName)
         {
-            // Extraction json description of all text bounding boxes
-            await JavascriptInterop.InjectJavascriptDefinitionsAsync(webview);
-            var extractTextTask = JavascriptInterop.ExtractTextAsJson(webview, true);
-            if (await Task.WhenAny(extractTextTask, Task.Delay(30000)) != extractTextTask)
-            {
-                throw new Exception("Timeout error : waited more than 30 seconds for extractText call to finish");
-            }
-            var textBoundingBoxes = extractTextTask.Result;
-            if(textBoundingBoxes.StartsWith("ERROR:"))
+            // Extract json description of all text bounding boxes
+            await JavascriptInterop.InjectJavascriptDefinitionsAsync(webview);    
+            var textBoundingBoxes = await JavascriptInterop.ExtractTextAsJson(webview, false);
+            if (textBoundingBoxes.StartsWith("ERROR:"))
             {
                 throw new Exception("Javascript error : " + textBoundingBoxes.Substring(6));
             }

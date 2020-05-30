@@ -102,6 +102,9 @@ class BoundingBox {
         if (!isFinite(x) || !isFinite(y) || !isFinite(width) || !isFinite(height)) {
             throw new Error("Bounding box coordinates are not finite");
         }
+        if (this.x<0 || this.y<0 || this.width<=0 || this.height<=0) {
+            throw new Error("Bounding box coordinates are negative");
+        }
     }
 }
 
@@ -181,7 +184,11 @@ function prunePageElements(pageEltsList) {
 
 function getBoundingBox(elt) {
     var rect = elt.getBoundingClientRect();
-    return new BoundingBox(rect.left, rect.top, rect.width, rect.height);
+    var x = rect.left < 0 ? 0 : rect.left;
+    var y = rect.top < 0 ? 0 : rect.top;
+    var width = rect.width <= 0 ? 8 : rect.width;
+    var height = rect.height <= 0 ? 8 : rect.height;
+    return new BoundingBox(x, y, width, height);
 }
 
 function createLinesFromWords(words) {

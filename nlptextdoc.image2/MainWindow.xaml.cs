@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using Microsoft.Web.WebView2.Core;
 
 namespace nlptextdoc.image2
@@ -17,7 +18,7 @@ namespace nlptextdoc.image2
     public partial class MainWindow : Window
     {
         // -- Configuration --
-        const string DATASET = "Banque";
+        const string DATASET = "Assurance";
         const int STARTCOUNTER = 1;
         const bool INTERACTIVE = false;
 
@@ -187,17 +188,34 @@ namespace nlptextdoc.image2
                 // Resize view to content size
                 ScreenCapture.SetViewDimensions(webview, contentDimensions);
 
-                // Capture a screenshot
-                await ScreenCapture.CreateAndSaveScreenshotAsync(webview.CoreWebView2, capture, fileName);
+                // Wait 3 seconds for display to adjust
+                Thread.Sleep(3000);
 
                 try
                 {
-                    // Capture a description of all chars/words/lines/blocks bounding boxes
-                    // Draw all these bounding boxes on the screen
-                    var pageElementsTree = await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview.CoreWebView2, fileName);
+                    PageElement pageElementsTree = null;
+                    int screenshotHeight = 0;
+                    int retryCount = 0;
+                    do
+                    {
+                        retryCount++;
 
-                    // Capture a new screenshot
-                    await ScreenCapture.CreateAndSaveScreenshotAsync(webview.CoreWebView2, captureBoxes, fileName, "boxes");
+                        // Capture a description of all chars/words/lines/blocks bounding boxes                    
+                        pageElementsTree = await ScreenCapture.CreateAndSaveTextBoundingBoxes(webview.CoreWebView2, fileName);
+
+                        // Capture a screenshot
+                        var screenFile = await ScreenCapture.CreateAndSaveScreenshotAsync(webview.CoreWebView2, fileName);
+
+                        // Draw the bounding boxes on a second screenshot
+                        var boxesFile = MaskGenerator.DrawBoundingBoxes(screenFile, pageElementsTree);
+
+                        // Display both screenshots on screen
+                        screenshotHeight = SixLabors.ImageSharp.Image.Identify(screenFile).Height;
+                        DisplayScreenshot(screenFile, captureScreen);
+                        DisplayScreenshot(boxesFile, captureBoxes);                       
+                    }
+                    // Check consistency
+                    while (retryCount <= 3 && screenshotHeight != pageElementsTree.boundingBox.height);                    
                 }
                 catch (Exception e)
                 {
@@ -207,7 +225,14 @@ namespace nlptextdoc.image2
                     }
                     else
                     {
-                        FilesManager.WriteTextToFile(fileName + "_error.log", e.Message);
+                        var message = e.Message;
+                        message += "\n" + e.StackTrace;
+                        if(e.InnerException != null)
+                        {
+                            message += "\n" + e.InnerException.Message;
+                            message += "\n" + e.InnerException.StackTrace;
+                        }
+                        FilesManager.WriteTextToFile(fileName + "_error.log", message);
                     }
                 }
 
@@ -223,6 +248,17 @@ namespace nlptextdoc.image2
                     ScreenCapture.SetViewDimensions(webview, viewDimensions);
                 }
             }
+        }
+
+        private static void DisplayScreenshot(string filePath, Image target)
+        {
+            // Display image from disk
+            BitmapImage image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(filePath);
+            image.EndInit();
+            target.Source = image;
         }
     }
 }

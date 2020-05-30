@@ -20,12 +20,16 @@ namespace nlptextdoc.image2
         internal async static Task InjectJavascriptDefinitionsAsync(CoreWebView2 webview)
         {
             await webview.ExecuteScriptAsync(javascriptDefinitions);
-            await webview.ExecuteScriptAsync("document.body.style.overflow = 'hidden';");
         }
 
         internal async static Task<string> ExecuteJavascriptCodeAsync(CoreWebView2 webview, string javascriptCode)
         {
-            var result = await webview.ExecuteScriptAsync(javascriptCode);
+            var executeScriptTask = webview.ExecuteScriptAsync(javascriptCode);
+            if (await Task.WhenAny(executeScriptTask, Task.Delay(10000)) != executeScriptTask)
+            {
+                throw new Exception("Timeout error : waited more than 10 seconds for javascript call to finish");
+            }
+            var result = executeScriptTask.Result;
             if (result.Length > 0 && result.StartsWith('"'))
             {
                 return result.Substring(1, result.Length - 2);
