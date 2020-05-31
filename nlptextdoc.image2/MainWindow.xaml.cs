@@ -18,7 +18,7 @@ namespace nlptextdoc.image2
     public partial class MainWindow : Window
     {
         // -- Configuration --
-        const string DATASET = "Assurance";
+        const string DATASET = "Bourse";
         const int STARTCOUNTER = 1;
         const bool INTERACTIVE = false;
 
@@ -113,6 +113,7 @@ namespace nlptextdoc.image2
         private async Task<(HttpStatusCode,CoreWebView2WebErrorStatus)> RefreshCurrentUrl()
         {
             HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4157.0 Safari/537.36 Edg/85.0.531.0");
             var response = await client.GetAsync(currentURL, HttpCompletionOption.ResponseHeadersRead);
 
             CoreWebView2WebErrorStatus errorStatus = CoreWebView2WebErrorStatus.Unknown;
@@ -165,8 +166,13 @@ namespace nlptextdoc.image2
             // Get unique file name for the current URL
             var fileName = await JavascriptInterop.GetUniqueFileNameFromURLAsync(webview.CoreWebView2);
             fileName = counter.ToString("D5") + "_" + fileName;
+            if (fileName.Contains("chromewebdata"))
+            {
+                FilesManager.WriteTextToFile(fileName + "_error.log", "Skipping this URL because of security issues : connexion is not safe");
+                return; // Skip URLs with security problems
+            }
 
-            if ((int)currentStatusCode >= 400 ||  currentErrorStatus != CoreWebView2WebErrorStatus.Unknown)
+            if ((int)currentStatusCode >= 400 && currentErrorStatus != CoreWebView2WebErrorStatus.Unknown)
             {
                 var errorString = Enum.GetName(typeof(CoreWebView2WebErrorStatus), currentErrorStatus);
                 var errorMessage = "Error navigating to " + currentURL + " => " + currentStatusCode + " / " + errorString;
@@ -188,13 +194,14 @@ namespace nlptextdoc.image2
                 // Resize view to content size
                 ScreenCapture.SetViewDimensions(webview, contentDimensions);
 
-                // Wait 3 seconds for display to adjust
-                Thread.Sleep(3000);
+                // Wait 1 second for display to adjust
+                Thread.Sleep(1000);
 
                 try
                 {
                     PageElement pageElementsTree = null;
                     int screenshotHeight = 0;
+                    int screenshotWidth = 0;
                     int retryCount = 0;
                     do
                     {
@@ -210,12 +217,14 @@ namespace nlptextdoc.image2
                         var boxesFile = MaskGenerator.DrawBoundingBoxes(screenFile, pageElementsTree);
 
                         // Display both screenshots on screen
-                        screenshotHeight = SixLabors.ImageSharp.Image.Identify(screenFile).Height;
+                        var imageInfo = SixLabors.ImageSharp.Image.Identify(screenFile);
+                        screenshotHeight = imageInfo.Height;
+                        screenshotWidth = imageInfo.Width;
                         DisplayScreenshot(screenFile, captureScreen);
                         DisplayScreenshot(boxesFile, captureBoxes);                       
                     }
                     // Check consistency
-                    while (retryCount <= 3 && screenshotHeight != pageElementsTree.boundingBox.height);                    
+                    while (retryCount <= 3 && (screenshotHeight != pageElementsTree.boundingBox.height || screenshotWidth != pageElementsTree.boundingBox.width));                    
                 }
                 catch (Exception e)
                 {

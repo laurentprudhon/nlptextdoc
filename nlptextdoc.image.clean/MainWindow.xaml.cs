@@ -2,29 +2,28 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 
 namespace nlptextdoc.image.clean
-{
-    /// <summary>
+{    /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window
     {
+        // Config
+        private static int IMAGES_DIRECTORY_INDEX = 0;
+
         public MainWindow()
         {
             InitializeComponent();
 
-            var outputFolder = GetOutputFolder();
+            // Images folder and errors subdirectory
+            var outputFolder = GetOutputFolder().GetDirectories()[IMAGES_DIRECTORY_INDEX];
+            errorFolder = outputFolder.CreateSubdirectory("errors");
+
+            // Group files in images folder by number
             var fileGroups = outputFolder.GetFiles().OrderBy(fi => fi.Name).GroupBy(fi => fi.Name.Substring(0,5));
             fileGroupsEnumerator = fileGroups.GetEnumerator();
             totalView.Text = " / " + fileGroups.Last().Key;
@@ -48,7 +47,8 @@ namespace nlptextdoc.image.clean
                     var screenFile = currentFileGroup.Where(fi => fi.Name.EndsWith("_screen.png")).FirstOrDefault();
                     var boxesFile = currentFileGroup.Where(fi => fi.Name.EndsWith("_boxes.png")).FirstOrDefault();
                     if (jsonFile == null || screenFile == null || boxesFile == null ||
-                        jsonFile.Length == 0 || screenFile.Length == 0 || boxesFile.Length == 0)
+                        jsonFile.Length == 0 || screenFile.Length == 0 || boxesFile.Length == 0 ||
+                        screenFile.Name.Contains("chromewebdata"))
                     {
                         DeleteFiles(null, null);
                     }
@@ -61,6 +61,7 @@ namespace nlptextdoc.image.clean
                         {
                             DeleteFiles(null, null);
                         }
+                        scroll2.ScrollToEnd();
                     }
                 }
             }
@@ -80,13 +81,15 @@ namespace nlptextdoc.image.clean
             image.EndInit();
             screenshot.Source = image;
             return (image.PixelWidth,image.PixelHeight);
-        }                   
+        }
+
+        private DirectoryInfo errorFolder;
 
         private void DeleteFiles(object sender, RoutedEventArgs args)
         {
             foreach (var file in currentFileGroup)
             {
-                file.Delete();
+                file.MoveTo(Path.Combine(errorFolder.FullName, file.Name));
             }
             DisplayNextFileGroup(null, null);
         }
