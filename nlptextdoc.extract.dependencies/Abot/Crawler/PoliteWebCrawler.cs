@@ -95,6 +95,8 @@ namespace Abot.Crawler
                         ((Robots.Robots)_robotsDotText.Robots).AddDisallowEntry(_crawlContext.CrawlConfiguration.RobotsDotTextUserAgentString, pattern);
                     }
                 }
+                // If the scheduler was deserialized after a 'continue' command, we need to filter the pages that were already scheduled according to the new config
+                ((Scheduler)_scheduler).FilterAllowedUrlsAfterConfig(this.ShouldCrawlPage);
             }
 
             //Use whichever value is greater between the actual crawl delay value found, the max allowed crawl delay value or the minimum crawl delay required for every domain

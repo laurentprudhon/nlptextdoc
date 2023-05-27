@@ -23,6 +23,7 @@ namespace nlptextdoc.extract.html
             Scope = ExtractionScope.Domain;
             MaxDuration = 2;
             MaxPageCount = 500;
+            MaxErrorsCount = 100;
             MinUniqueText = 10;
             MaxSizeOnDisk = 0;
             MinCrawlDelay = 100;
@@ -53,6 +54,10 @@ namespace nlptextdoc.extract.html
         /// Maximum number of pages extracted from the website
         /// </summary>
         public int MaxPageCount;
+        /// <summary>
+        /// Maximum number of errors during the extraction
+        /// </summary>
+        public int MaxErrorsCount;
         /// <summary>
         /// Minimum percentage of unique text blocks extracted (=10 for 10%)"
         /// </summary>
@@ -94,6 +99,8 @@ namespace nlptextdoc.extract.html
             sw.WriteLine("maxDuration=" + MaxDuration);
             sw.WriteLine("# Maximum number of pages extracted from the website"); 
             sw.WriteLine("maxPageCount=" + MaxPageCount);
+            sw.WriteLine("# Maximum number of errors during the extraction");
+            sw.WriteLine("maxErrorsCount=" + MaxErrorsCount);            
             sw.WriteLine("# Minimum percentage of unique text blocks extracted");
             sw.WriteLine("minUniqueText=" + MinUniqueText);
             sw.WriteLine("# Maximum size of the extracted text files on disk in Mb");
@@ -126,7 +133,6 @@ namespace nlptextdoc.extract.html
                     extractorParams.ParseParam(line);
                 }
             }
-
             return extractorParams;
         }
 
@@ -157,6 +163,8 @@ namespace nlptextdoc.extract.html
                         default:
                             throw new Exception("Invalid value for key scope at : " + keyValueParam);
                     }
+                    // Only load the patterns of the last run config
+                    UrlPatternsToExclude.Clear();
                     break;
                 case "rooturl":
                     RootUrl = new Uri(value);
@@ -169,6 +177,9 @@ namespace nlptextdoc.extract.html
                     break;
                 case "maxpagecount":
                     MaxPageCount = Int32.Parse(value);
+                    break;
+                case "maxerrorscount":
+                    MaxErrorsCount = Int32.Parse(value);
                     break;
                 case "minuniquetext":
                     MinUniqueText = Int32.Parse(value);

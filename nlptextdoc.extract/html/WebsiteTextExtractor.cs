@@ -571,6 +571,11 @@ namespace nlptextdoc.extract.html
                     stopCrawl = true;
                     stopMessage = "Extraction stopped because the number of extracted pages exceeded " + ExtractorParams.MaxPageCount;
                 }
+                else if (ExtractorParams.MaxErrorsCount > 0 && Perfs.CrawlErrorsCount >= ExtractorParams.MaxErrorsCount)
+                {
+                    stopCrawl = true;
+                    stopMessage = "Extraction stopped because the number of crawl errors exceeded " + ExtractorParams.MaxErrorsCount;
+                }
                 else if (ExtractorParams.MinUniqueText > 0 && Perfs.PercentUniqueForLastDocs < (ExtractorParams.MinUniqueText / 100.0))
                 {
                     stopCrawl = true;

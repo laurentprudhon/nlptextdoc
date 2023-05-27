@@ -88,6 +88,27 @@ namespace Abot.Core
             return scheduler;
         }
 
+        public delegate bool PageFilter(PageToCrawl pageToCrawl);
+
+        public void FilterAllowedUrlsAfterConfig(PageFilter shouldCrawlPage)
+        {
+            // The Scheduler was deserialized after a 'continue' command
+            if(_pagesToCrawlRepo?.Count()  > 0)
+            {
+                var initialRepo = _pagesToCrawlRepo;
+                _pagesToCrawlRepo = new FifoPagesToCrawlRepository();
+                PageToCrawl candidatePage = null;
+                while ((candidatePage = initialRepo.GetNext()) != null)
+                {
+                    if(shouldCrawlPage(candidatePage))
+                    {
+                        _pagesToCrawlRepo.Add(candidatePage);
+                    }
+                }
+            }
+            
+        }
+
         public void Serialize(Stream fs)
         {
             BinaryFormatter formatter = new BinaryFormatter();

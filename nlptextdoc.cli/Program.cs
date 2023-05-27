@@ -28,6 +28,7 @@ namespace nlptextdoc.cli
             Console.WriteLine("Optional stopping conditions (the first to be met will stop the crawl, 0 means no limit) :");
             Console.WriteLine(" - maxDuration=2     : maximum duration of the extraction in minutes");
             Console.WriteLine(" - maxPageCount=500  : maximum number of pages extracted from the website");
+            Console.WriteLine(" - maxErrorsCount=100  : maximum number of errors during the extraction");
             Console.WriteLine(" - minUniqueText=10  : minimum percentage of unique text blocks extracted");
             Console.WriteLine(" - maxSizeOnDisk=0   : maximum size of the extracted text files on disk in Mb");
             Console.WriteLine("Optional parameters :");
