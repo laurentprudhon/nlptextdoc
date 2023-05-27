@@ -522,7 +522,10 @@ namespace nlptextdoc.extract.html
                     
                     if (crawledPage.WebException != null)
                     {
-                        Perfs.AddCrawlError();
+                        if (!crawledPage.WebException.Message.ToLower().Contains("not found"))
+                        {
+                            Perfs.AddCrawlError();
+                        }
                     }
                     else if(crawledPage.HttpWebResponse != null)
                     {

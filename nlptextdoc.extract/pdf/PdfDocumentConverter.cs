@@ -19,7 +19,7 @@ namespace nlptextdoc.extract.pdf
             var metadataDict = pdfDocument.Information.DocumentInformationDictionary.Data;
             foreach (var key in metadataDict.Keys)
             {
-                if(key != "Title")
+                if(key != "Title" && metadataDict[key] is UglyToad.PdfPig.Tokens.StringToken)
                 {
                     docBuilder.AddMetadata(key, ((UglyToad.PdfPig.Tokens.StringToken)metadataDict[key]).Data);
                 }

@@ -2,7 +2,7 @@
   "profiles": {
     "nlptextdoc.cli": {
       "commandName": "Project",
-      "commandLineArgs": "continue .\\cic.fr",
+      "commandLineArgs": "continue .\\www.cic.fr",
       "workingDirectory": "C:\\nlptextdoc-dataset-2023_05"
     }
   }
