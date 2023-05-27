@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference Include="PdfPig" Version="0.1.7" />
   </ItemGroup>
 
   <ItemGroup>

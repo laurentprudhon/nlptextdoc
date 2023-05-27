@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net;
 using AngleSharp.Dom.Html;
 using AngleSharp.Parser.Html;
+using UglyToad.PdfPig;
 
 namespace Abot.Poco
 {
@@ -33,6 +34,11 @@ namespace Abot.Poco
         }
 
         /// <summary>
+        /// Not null only if the content is a PDF document
+        /// </summary>
+        public PdfDocument PdfDocument { get; set; }
+
+        /// <summary>
         /// Web request sent to the server
         /// </summary>
         public HttpWebRequest HttpWebRequest { get; set; }
@@ -41,6 +47,9 @@ namespace Abot.Poco
         /// Web response from the server. NOTE: The Close() method has been called before setting this property.
         /// </summary>
         public HttpWebResponseWrapper HttpWebResponse { get; set; }
+
+        public bool HasHtmlContent { get; set; } = false;
+        public bool HasPdfContent { get; set; } = false;
 
         /// <summary>
         /// The web exception that occurred during the crawl

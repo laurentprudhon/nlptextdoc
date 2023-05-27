@@ -6,6 +6,7 @@ using AngleSharp.Dom;
 using AngleSharp.Dom.Events;
 using AngleSharp.Dom.Html;
 using AngleSharp.Network;
+using nlptextdoc.extract.pdf;
 using nlptextdoc.text.document;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
+using UglyToad.PdfPig;
 
 namespace nlptextdoc.extract.html
 {
@@ -85,7 +87,7 @@ namespace nlptextdoc.extract.html
         {
             CrawlConfiguration config = new CrawlConfiguration();
 
-            config.MaxConcurrentThreads = Environment.ProcessorCount;
+            config.MaxConcurrentThreads = 1; // Environment.ProcessorCount;
             config.MaxPagesToCrawl = 0;
             config.MaxPagesToCrawlPerDomain = 0;
             config.MaxPageSizeInBytes = 0;
@@ -96,7 +98,7 @@ namespace nlptextdoc.extract.html
             config.IsExternalPageCrawlingEnabled = false;
             config.IsExternalPageLinksCrawlingEnabled = false;
             config.IsRespectUrlNamedAnchorOrHashbangEnabled = false;
-            config.DownloadableContentTypes = "text/html, text/plain";
+            config.DownloadableContentTypes = "text/html, text/plain, application/pdf";
             config.HttpServicePointConnectionLimit = 200;
             config.HttpRequestTimeoutInSeconds = 15;
             config.HttpRequestMaxAutoRedirects = 7;
@@ -212,10 +214,19 @@ namespace nlptextdoc.extract.html
                     context.ResponseCache.Add(htmlDocumentUri.AbsoluteUri, response);
                 }
 
-                // Parse the page and its Css dependencies whith Anglesharp
-                // in the right context, initialized in the constructor
+                
                 Stopwatch timer = Stopwatch.StartNew();
-                crawledPage.AngleSharpHtmlDocument = context.OpenAsync(htmlDocumentUri.AbsoluteUri).Result as IHtmlDocument;
+                if (crawledPage.HasHtmlContent)
+                {
+                    // Parse the page and its Css dependencies whith Anglesharp
+                    // in the right context, initialized in the constructor
+                    crawledPage.AngleSharpHtmlDocument = context.OpenAsync(htmlDocumentUri.AbsoluteUri).Result as IHtmlDocument;
+                }
+                else if(crawledPage.HasPdfContent)
+                {
+                    // Parse the PDF file content
+                    crawledPage.PdfDocument = PdfDocument.Open(crawledPage.Content.Bytes);
+                }
                 timer.Stop();
                 Perfs.AddParseTime(timer.ElapsedMilliseconds);
 
@@ -235,7 +246,14 @@ namespace nlptextdoc.extract.html
                 }
                 else
                 {
-                    WriteError("Error while parsing the page " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
+                    if (crawledPage.HasHtmlContent)
+                    {
+                        WriteError("Error while parsing the Html page " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
+                    }
+                    else if (crawledPage.HasPdfContent)
+                    {
+                        WriteError("Error while parsing the PDF file " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
+                    }
                 }
 
                 // Don't crawl
@@ -524,14 +542,28 @@ namespace nlptextdoc.extract.html
                     return;
                 }
 
-                // Get the page and its Css dependencies parsed by Abot whith Anglesharp
-                var htmlDocumentUri = crawledPage.HttpWebResponse.ResponseUri;
-                var htmlDocument = crawledPage.AngleSharpHtmlDocument;
-
-                // Visit the Html page syntax tree and convert it to NLPTextDocument
                 Stopwatch timer = Stopwatch.StartNew();
-                var htmlConverter = new HtmlDocumentConverter(htmlDocumentUri.AbsoluteUri, htmlDocument);
-                var normalizedTextDocument = htmlConverter.ConvertToNLPTextDocument();
+                NLPTextDocument normalizedTextDocument = null;
+                var htmlDocumentUri = crawledPage.HttpWebResponse.ResponseUri;
+                if (crawledPage.HasHtmlContent)
+                {
+                    // Get the page and its Css dependencies parsed by Abot whith Anglesharp
+                    var htmlDocument = crawledPage.AngleSharpHtmlDocument;
+
+                    // Visit the Html page syntax tree and convert it to NLPTextDocument                
+                    var htmlConverter = new HtmlDocumentConverter(htmlDocumentUri.AbsoluteUri, htmlDocument);
+                    normalizedTextDocument = htmlConverter.ConvertToNLPTextDocument();
+                }
+                else if (crawledPage.HasPdfContent)                    
+                {
+                    // Get the PDF file content parsed by PdfPig
+                    var pdfDocument = crawledPage.PdfDocument;
+
+                    // Analyze the layout of the Pdf file and extract text blocks
+                    // - one section per page
+                    // - one multiline textblock per block
+                    normalizedTextDocument = PdfDocumentConverter.ConvertToNLPTextDocument(htmlDocumentUri.AbsoluteUri, pdfDocument);
+                }
                 timer.Stop();
 
                 // Check the percentage of text blocks which are new & unique in this page

@@ -1,5 +1,8 @@
 ﻿using nlptextdoc.extract.html;
 using System;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Reflection;
+using System.Runtime.Intrinsics.X86;
 
 namespace nlptextdoc.cli
 {
@@ -38,11 +41,13 @@ namespace nlptextdoc.cli
             Console.WriteLine("0. Navigate to the rootUrl in your browser and check the links on the page to select a scope for the extraction");
             Console.WriteLine("1. Run the the tool once with the default params (maximum 2 minutes/500 pages, small crawl delay)");
             Console.WriteLine("2. Open the log file \"_nlptextdoc/httprequests.log.csv\" created in the storageDirectory for the website");
-            Console.WriteLine("3. Check for Http \"Forbidden\" answers, and test if the url was accessible when tested from your browser");
+            Console.WriteLine("3. Check for Http \"Forbidden\" answers or connection errors, and test if the url was accessible when tested from your browser");
             Console.WriteLine("4. Try again with a bigger minCrawlDelay, and continue to increase it until \"Forbidden\" errors disappear");
             Console.WriteLine("5. Open the log file \"_nlptextdoc/exceptions.log.txt\" created in the storageDirectory for the website");
             Console.WriteLine("6. Try to find the root cause and to fix any exception message you see there");
             Console.WriteLine("7. Start the extraction again with bigger maxPageCount and maxDuration");
+            Console.WriteLine("8. Open the log file \"_nlptextdoc /exceptions.log.txt\" and find the Urls you want to exclude");
+            Console.WriteLine("9. Add urlPatternsToExclude and continue or restart the crawl with a bigger maxPageCount and maxDuration");
             Console.WriteLine();
             Console.WriteLine("The extraction can take a while :");
             Console.WriteLine("- your system can go to hibernation mode and resume without interrupting the crawl");

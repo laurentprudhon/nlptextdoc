@@ -111,6 +111,14 @@ namespace Abot.Core
                 return new CrawlDecision { Allow = false, Reason = "HttpStatusCode is not 200" };
             
             string pageContentType = crawledPage.HttpWebResponse.ContentType.ToLower().Trim();
+            if(pageContentType.StartsWith("text/html"))
+            {
+                crawledPage.HasHtmlContent = true;
+            }
+            else if (pageContentType.StartsWith("application/pdf"))
+            {
+                crawledPage.HasPdfContent = true;
+            }
             bool isDownloadable = false;
             List<string> cleanDownloadableContentTypes = crawlContext.CrawlConfiguration.DownloadableContentTypes
                 .Split(',')
