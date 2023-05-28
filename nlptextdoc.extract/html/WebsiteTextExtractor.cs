@@ -87,7 +87,7 @@ namespace nlptextdoc.extract.html
         {
             CrawlConfiguration config = new CrawlConfiguration();
 
-            config.MaxConcurrentThreads = 1; // Environment.ProcessorCount;
+            config.MaxConcurrentThreads = 4; // Environment.ProcessorCount;
             config.MaxPagesToCrawl = 0;
             config.MaxPagesToCrawlPerDomain = 0;
             config.MaxPageSizeInBytes = 0;
@@ -522,7 +522,8 @@ namespace nlptextdoc.extract.html
                     
                     if (crawledPage.WebException != null)
                     {
-                        if (!crawledPage.WebException.Message.ToLower().Contains("not found"))
+                        var message = crawledPage.WebException.Message.ToLower();
+                        if (!message.Contains("not found") && !message.Contains("moved"))
                         {
                             Perfs.AddCrawlError();
                         }
