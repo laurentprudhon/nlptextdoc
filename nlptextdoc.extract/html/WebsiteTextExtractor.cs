@@ -9,6 +9,7 @@ using AngleSharp.Network;
 using nlptextdoc.extract.pdf;
 using nlptextdoc.text.document;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -218,13 +219,20 @@ namespace nlptextdoc.extract.html
                 Stopwatch timer = Stopwatch.StartNew();
                 if (crawledPage.HasHtmlContent)
                 {
+                    // For HTML, the downloaded bytes counter is increased during the parsing phase below
+                    // because we need to take into account the dependent css files
+
                     // Parse the page and its Css dependencies whith Anglesharp
                     // in the right context, initialized in the constructor
                     crawledPage.AngleSharpHtmlDocument = context.OpenAsync(htmlDocumentUri.AbsoluteUri).Result as IHtmlDocument;
+                   
                 }
                 else if(crawledPage.HasPdfContent)
                 {
-                    // Parse the PDF file content
+                    // For PDF, we can directly increase the downloaded bytes counter
+                    Perfs.AddDownloadSize(crawledPage.Content.Bytes.Length);
+
+                    // Parse the PDF file content;
                     crawledPage.PdfDocument = PdfDocument.Open(crawledPage.Content.Bytes);
                 }
                 timer.Stop();
@@ -248,11 +256,11 @@ namespace nlptextdoc.extract.html
                 {
                     if (crawledPage.HasHtmlContent)
                     {
-                        WriteError("Error while parsing the Html page " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
+                        WriteError("Error while parsing the Html page " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, crawledPage, e);
                     }
                     else if (crawledPage.HasPdfContent)
                     {
-                        WriteError("Error while parsing the PDF file " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e);
+                        WriteError("Error while parsing the PDF file " + crawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, crawledPage, e);
                     }
                 }
 
@@ -261,9 +269,9 @@ namespace nlptextdoc.extract.html
             }
         }
 
-        private void WriteError(string context, Exception e)
+        private void WriteError(string context, CrawledPage crawledPage, Exception e)
         {
-            Perfs.AddCrawlError();
+            Perfs.AddCrawlError(crawledPage);
             lock (exceptionsWriter)
             {
                 exceptionsWriter.WriteLine(DateTime.Now.ToLongTimeString());
@@ -381,6 +389,7 @@ namespace nlptextdoc.extract.html
 
         private void LogRequest(CrawledPage crawledPage, float percentUnique)
         {
+            Perfs.LastCrawledPages.Enqueue(crawledPage);
             lock (requestsWriter)
             {
                 requestsWriter.Write(crawledPage.RequestStarted.ToString("HH:mm:ss.fff"));
@@ -525,7 +534,7 @@ namespace nlptextdoc.extract.html
                         var message = crawledPage.WebException.Message.ToLower();
                         if (!message.Contains("not found") && !message.Contains("moved"))
                         {
-                            Perfs.AddCrawlError();
+                            Perfs.AddCrawlError(crawledPage);
                         }
                     }
                     else if(crawledPage.HttpWebResponse != null)
@@ -533,7 +542,7 @@ namespace nlptextdoc.extract.html
                         int statusCode = (int)crawledPage.HttpWebResponse.StatusCode;
                         if(statusCode != 404 && statusCode >= 400)
                         {
-                            Perfs.AddCrawlError();
+                            Perfs.AddCrawlError(crawledPage);
                         }
                     }
                     return;
@@ -592,6 +601,7 @@ namespace nlptextdoc.extract.html
                 // Test stopping conditions
                 bool stopCrawl = false;
                 string stopMessage = null;
+                string additionalStopInfo = null;
                 if(userCancelEventReceived)
                 {
                     stopCrawl = true;
@@ -611,11 +621,35 @@ namespace nlptextdoc.extract.html
                 {
                     stopCrawl = true;
                     stopMessage = "Extraction stopped because the number of crawl errors exceeded " + ExtractorParams.MaxErrorsCount;
+                    
+                    additionalStopInfo = "Last requests with errors:\n";
+                    int firstErrorIndex = Math.Max(0, Perfs.CrawlErrorsCount - 10);
+                    for(int i = firstErrorIndex; i<Perfs.CrawlErrorsCount; i++)
+                    {
+                        var crawledPageWithError = Perfs.CrawledPagesWithErrors[i];
+                        var crawledPageStatus = "(no response)";
+                        if (crawledPage.HttpWebResponse != null)
+                        {
+                            crawledPageStatus = crawledPage.HttpWebResponse.StatusCode.ToString();
+                        }
+                        var crawledPageException = "(no exception)";
+                        if (crawledPage.WebException != null)
+                        {
+                            crawledPageException = crawledPage.WebException.Message;
+                        }
+                        additionalStopInfo += $"- {crawledPageStatus} {crawledPageWithError.Uri} -> {crawledPageException}\n";
+                    }
                 }
                 else if (ExtractorParams.MinUniqueText > 0 && Perfs.PercentUniqueForLastDocs < (ExtractorParams.MinUniqueText / 100.0))
                 {
                     stopCrawl = true;
                     stopMessage = "Extraction stopped because the % of new textblocks fell below " + ExtractorParams.MinUniqueText + "%";
+
+                    additionalStopInfo = "Last requests:\n";
+                    foreach(var lastCrawledPage in Perfs.LastCrawledPages.Elements())
+                    {
+                        additionalStopInfo += $"- {lastCrawledPage.Uri}\n";
+                    }
                 }
                 else if (ExtractorParams.MaxSizeOnDisk > 0 && Perfs.TotalSizeOnDisk >= (ExtractorParams.MaxSizeOnDisk * 1024L * 1024L))
                 {
@@ -648,7 +682,11 @@ namespace nlptextdoc.extract.html
 
                     if (stopCrawl)
                     {
-                        DisplayMessages(WriteEndMessage, stopMessage);
+                        if (additionalStopInfo != null)
+                        {
+                            stopMessage += "\n" + additionalStopInfo;
+                        }
+                        DisplayMessages(WriteEndMessage, stopMessage);                       
                         Environment.Exit(0);
                     }
                 }                
@@ -658,7 +696,7 @@ namespace nlptextdoc.extract.html
                 // Safeguard to make sure that an error 
                 // during the processing of a single page 
                 // can't stop the whole crawl process                
-                WriteError("Error while processing the page : " + e.CrawledPage.HttpWebResponse.ResponseUri.AbsoluteUri,  ex);
+                WriteError("Error while processing the page : " + e.CrawledPage.HttpWebResponse.ResponseUri.AbsoluteUri, e.CrawledPage, ex);
             }
         }        
 
@@ -769,6 +807,44 @@ namespace nlptextdoc.extract.html
             float[] percentUniqueForLastDocs = new float[1000];
             int lastDocIndex = -1;
 
+            // Track 10 last crawled pages
+            public FixedSizedQueue<CrawledPage> LastCrawledPages = new FixedSizedQueue<CrawledPage>(10);
+
+            public class FixedSizedQueue<T>
+            {
+                readonly ConcurrentQueue<T> queue = new ConcurrentQueue<T>();
+
+                public int Size { get; private set; }
+
+                public FixedSizedQueue(int size)
+                {
+                    Size = size;
+                }
+
+                public void Enqueue(T obj)
+                {
+                    queue.Enqueue(obj);
+
+                    while (queue.Count > Size)
+                    {
+                        T outObj;
+                        queue.TryDequeue(out outObj);
+                    }
+                }
+
+                public IEnumerable<T> Elements()
+                {
+                    T element;
+                    while(queue.TryDequeue(out element))
+                    {
+                        yield return element;
+                    }
+                }
+            }
+
+            // Track crawled pages with errors
+            public List<CrawledPage> CrawledPagesWithErrors { get; set; } = new List<CrawledPage>();
+
             internal float SetPercentUniqueForLastDoc(NLPTextDocument document)
             {
                 lock (stringHashes)
@@ -822,9 +898,13 @@ namespace nlptextdoc.extract.html
                 }
             }
 
-            internal void AddCrawlError()
+            internal void AddCrawlError(CrawledPage crawledPage)
             {
                 Interlocked.Increment(ref CrawlErrorsCount);
+                lock(CrawledPagesWithErrors)
+                {
+                    CrawledPagesWithErrors.Add(crawledPage);
+                }
             }
 
             public void AddDownloadSize(int downloadSize)

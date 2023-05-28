@@ -240,8 +240,10 @@ namespace Robots
             {
                 if (Matches(path, disallowEntry.Pattern))
                 {
-                    if (CheckExplicitlyAllowed(userAgentEntry, uri))
-                        return true;
+                    // Remove the check below to err on the side of caution and politeness :
+                    // => now Disallowed always takes priority over Allowed
+                    // if (CheckExplicitlyAllowed(userAgentEntry, uri))
+                    //    return true;
 
                     return false;
                 }

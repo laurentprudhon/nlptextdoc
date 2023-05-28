@@ -23,7 +23,7 @@ namespace nlptextdoc.extract.html
             Scope = ExtractionScope.Domain;
             MaxDuration = 2;
             MaxPageCount = 500;
-            MaxErrorsCount = 100;
+            MaxErrorsCount = 10;
             MinUniqueText = 10;
             MaxSizeOnDisk = 0;
             MinCrawlDelay = 100;

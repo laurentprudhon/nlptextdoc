@@ -105,8 +105,7 @@ namespace Abot.Core
                         _pagesToCrawlRepo.Add(candidatePage);
                     }
                 }
-            }
-            
+            }            
         }
 
         public void Serialize(Stream fs)
