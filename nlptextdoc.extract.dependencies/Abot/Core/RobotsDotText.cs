@@ -6,6 +6,8 @@ namespace Abot.Core
 {
     public interface IRobotsDotText
     {
+        Uri RootUri { get; }
+
         /// <summary>
         /// Gets the number of seconds to delay between internal page crawls. Returns 0 by default.
         /// </summary>
@@ -33,6 +35,8 @@ namespace Abot.Core
         ILog _logger = LogManager.GetLogger("AbotLogger");
         IRobots _robotsDotTextUtil = null;
         Uri _rootUri = null;
+
+        public Uri RootUri { get { return _rootUri; } }
 
         public RobotsDotText(Uri rootUri, string content)
         {

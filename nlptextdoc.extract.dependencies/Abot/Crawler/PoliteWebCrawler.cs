@@ -128,7 +128,23 @@ namespace Abot.Crawler
         {
             bool allowedByRobots = true;
             if (_robotsDotText != null)
-                allowedByRobots = _robotsDotText.IsUrlAllowed(pageToCrawl.Uri.AbsoluteUri, _crawlContext.CrawlConfiguration.RobotsDotTextUserAgentString);
+            {
+                var uri = pageToCrawl.Uri.AbsoluteUri;
+                // Added the section below to enable mixing secure and non secure Urls in the same website
+                // (backward compatibility for old links)
+                if(pageToCrawl.Uri.Scheme != _robotsDotText.RootUri.Scheme)
+                {
+                    if(_robotsDotText.RootUri.Scheme == "https")
+                    {
+                        uri = uri.Replace("http://", "https://");
+                    }
+                    else
+                    {
+                        uri = uri.Replace("https://", "http://");
+                    }
+                }
+                allowedByRobots = _robotsDotText.IsUrlAllowed(uri, _crawlContext.CrawlConfiguration.RobotsDotTextUserAgentString);
+            }
 
 
             //https://github.com/sjdirect/abot/issues/96 Handle scenario where the root is allowed but all the paths below are disallowed like "disallow: /*"
