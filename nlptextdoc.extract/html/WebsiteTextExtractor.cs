@@ -637,7 +637,7 @@ namespace nlptextdoc.extract.html
                         {
                             crawledPageException = crawledPage.WebException.Message;
                         }
-                        additionalStopInfo += $"- {crawledPageStatus} {crawledPageWithError.Uri} -> {crawledPageException}\n";
+                        additionalStopInfo += $"- {crawledPageWithError.Uri}\n";
                     }
                 }
                 else if (ExtractorParams.MinUniqueText > 0 && Perfs.PercentUniqueForLastDocs < (ExtractorParams.MinUniqueText / 100.0))

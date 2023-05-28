@@ -1,14 +1,11 @@
 ﻿using nlptextdoc.extract.html;
 using System;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.Reflection;
-using System.Runtime.Intrinsics.X86;
 
 namespace nlptextdoc.cli
 {
     class Program
     {
-        static string version = "1.0";
+        static string version = "1.1";
 
         static void PrintUsage()
         {
