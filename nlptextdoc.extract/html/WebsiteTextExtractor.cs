@@ -30,12 +30,27 @@ namespace nlptextdoc.extract.html
             Init();
         }        
 
-        public WebsiteTextExtractor(string storageDirForWebsite, string[] newParams, bool doContinue = false)
+        public WebsiteTextExtractor(string storageDir, string rootUrl, string[] newParams, bool doContinue = false)
         {
             // Save action requested
             DoContinue = doContinue;
 
             // Reload params file 
+            string storageDirForWebsite = null;
+            for (int i = 2; i >= 0; i--)
+            {
+                string websitePath = HtmlFileUtils.GetWebsitePathFromUri((ExtractionScope)i, new Uri(rootUrl));
+                var contentDirectory = new DirectoryInfo(Path.Combine(storageDir, websitePath));
+                if (contentDirectory.Exists)
+                {
+                    storageDirForWebsite = contentDirectory.FullName;
+                    break;
+                }
+            }
+            if(storageDirForWebsite == null)
+            {
+                throw new Exception("No website storage directory found for : " + rootUrl);
+            }
             FileInfo paramFileInfo = new FileInfo(Path.Combine(storageDirForWebsite, LogsDirName, ConfigFileName));
             if(!paramFileInfo.Exists)
             {
@@ -187,7 +202,8 @@ namespace nlptextdoc.extract.html
             }
             else if (ev is CssParseEvent)
             {
-                var textSize = ((CssParseEvent)ev).StyleSheet.SourceCode.Text.Length;
+                var sourceCode = ((CssParseEvent)ev).StyleSheet.SourceCode;
+                var textSize = sourceCode!=null?sourceCode.Text.Length:0;
                 Perfs.AddDownloadSize(textSize);
             }
         }        

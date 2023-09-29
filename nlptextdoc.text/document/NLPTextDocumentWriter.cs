@@ -147,12 +147,12 @@ namespace nlptextdoc.text.document
                         WriteTextBlock(writer, item.Text, false);
                     }
                 }
-                writer.WriteLine();
             }
             catch(Exception e)
             {
                 // TO DO : remove this when fixing issue #21
             }
+            writer.WriteLine();
         }
 
         // ## [NestingLevel] [Section|List|Table] Start ...title...

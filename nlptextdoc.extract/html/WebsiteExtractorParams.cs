@@ -21,8 +21,8 @@ namespace nlptextdoc.extract.html
         {
             // Default values for command line parameters
             Scope = ExtractionScope.Domain;
-            MaxDuration = 2;
-            MaxPageCount = 500;
+            MaxDuration = 0;
+            MaxPageCount = 0;
             MaxErrorsCount = 10;
             MinUniqueText = 10;
             MaxSizeOnDisk = 0;

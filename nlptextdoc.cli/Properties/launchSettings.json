@@ -2,7 +2,7 @@
   "profiles": {
     "nlptextdoc.cli": {
       "commandName": "Project",
-      "commandLineArgs": "continue .\\www.cic.fr",
+      "commandLineArgs": "continue https://mabanque.bnpparibas/",
       "workingDirectory": "C:\\nlptextdoc-dataset-2023_05"
     }
   }

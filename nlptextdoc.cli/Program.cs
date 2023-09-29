@@ -5,7 +5,7 @@ namespace nlptextdoc.cli
 {
     class Program
     {
-        static string version = "1.1";
+        static string version = "1.2";
 
         static void PrintUsage()
         {
@@ -20,40 +20,41 @@ namespace nlptextdoc.cli
             Console.WriteLine("- interprets Css properties of the Html nodes to make this operation more reliable");
             Console.WriteLine("- preserves document / section / list / table grouping and nesting information");
             Console.WriteLine();
-            Console.WriteLine("Usage : nlptextdoc [scope] [rootUrl] [storageDir] [key=value optional params]");
+            Console.WriteLine("Usage to launch a website extraction:");
+            Console.WriteLine();
+            Console.WriteLine("nlptextdoc [scope] [rootUrl] [key=value optional params]");
             Console.WriteLine(" - scope            : domain | subdomain | path");
             Console.WriteLine("                      > decide what part of the rootUrl should be used to limit the extraction");
             Console.WriteLine(" - rootUrl          : root Url of the website (or subfolder of a website) you want to crawl");
-            Console.WriteLine(" - storageDir       : path to the disk directory where the text documents will be extracted");
-            Console.WriteLine("Optional stopping conditions (the first to be met will stop the crawl, 0 means no limit) :");
-            Console.WriteLine(" - maxDuration=2     : maximum duration of the extraction in minutes");
-            Console.WriteLine(" - maxPageCount=500  : maximum number of pages extracted from the website");
-            Console.WriteLine(" - maxErrorsCount=100  : maximum number of errors during the extraction");
-            Console.WriteLine(" - minUniqueText=10  : minimum percentage of unique text blocks extracted");
-            Console.WriteLine(" - maxSizeOnDisk=0   : maximum size of the extracted text files on disk in Mb");
+            Console.WriteLine();
+            Console.WriteLine("Usage to continue or restart after a first try:");
+            Console.WriteLine();
+            Console.WriteLine("nlptextdoc [continue|restart] [rootUrl] [key=value optional params to override]");
+            Console.WriteLine();
             Console.WriteLine("Optional parameters :");
             Console.WriteLine(" - minCrawlDelay=100 : delay in milliseconds between two requests sent to the website");
+            Console.WriteLine(" - excludeUrls=/*.php$ : stop extracting text from urls starting with this pattern");
+            Console.WriteLine();
+            Console.WriteLine("Optional stopping conditions (the first to be met will stop the crawl, 0 means no limit) :");
+            Console.WriteLine(" - maxDuration=0     : maximum duration of the extraction in minutes");
+            Console.WriteLine(" - maxPageCount=0  : maximum number of pages extracted from the website");
+            Console.WriteLine(" - maxErrorsCount=10  : maximum number of errors during the extraction");
+            Console.WriteLine(" - minUniqueText=10  : minimum percentage of unique text blocks extracted");
+            Console.WriteLine(" - maxSizeOnDisk=0   : maximum size of the extracted text files on disk in Mb");
             Console.WriteLine();
             Console.WriteLine("Recommended process :");
             Console.WriteLine("0. Navigate to the rootUrl in your browser and check the links on the page to select a scope for the extraction");
-            Console.WriteLine("1. Run the the tool once with the default params (maximum 2 minutes/500 pages, small crawl delay)");
+            Console.WriteLine("1. Run the the tool with the default params (crawl delay = 100 ms) until the extraction is stopped after 10 errors");
             Console.WriteLine("2. Open the log file \"_nlptextdoc/httprequests.log.csv\" created in the storageDirectory for the website");
-            Console.WriteLine("3. Check for Http \"Forbidden\" answers or connection errors, and test if the url was accessible when tested from your browser");
-            Console.WriteLine("4. Try again with a bigger minCrawlDelay, and continue to increase it until \"Forbidden\" errors disappear");
-            Console.WriteLine("5. Open the log file \"_nlptextdoc/exceptions.log.txt\" created in the storageDirectory for the website");
-            Console.WriteLine("6. Try to find the root cause and to fix any exception message you see there");
-            Console.WriteLine("7. Start the extraction again with bigger maxPageCount and maxDuration");
-            Console.WriteLine("8. Open the log file \"_nlptextdoc /exceptions.log.txt\" and find the Urls you want to exclude");
-            Console.WriteLine("9. Add urlPatternsToExclude and continue or restart the crawl with a bigger maxPageCount and maxDuration");
+            Console.WriteLine("3. Check for Http \"Forbidden\" answers or connection errors, and test if the url is accessible from your browser");
+            Console.WriteLine("4. Restart the extraction with a bigger minCrawlDelay, and continue to increase it until \"Forbidden\" errors disappear");
+            Console.WriteLine("5. Restart the extraction with an additional urlPatternsToExclude until you get more unique text blocks");
             Console.WriteLine();
             Console.WriteLine("The extraction can take a while :");
             Console.WriteLine("- your system can go to hibernation mode and resume without interrupting the crawl");
             Console.WriteLine("- your can even stop the crawl (Ctrl-C or shutdown) and continue it later where you left it");
             Console.WriteLine("- the continue command will use checkpoint and config files found in the \"_nlptextdoc\" subfolder");
             Console.WriteLine("- the restart command will ignore any checkpoint, start again at the root url, and overwrite everything");
-            Console.WriteLine();
-            Console.WriteLine("Specific syntax to continue or restart after a first try :");
-            Console.WriteLine("nlptextdoc [continue|restart] [storageDirectory/rootUrlSubdir] [key=value optional params to override]");
             Console.WriteLine();
         }
 
@@ -66,6 +67,9 @@ namespace nlptextdoc.cli
             else
             {
                 var command = args[0].Trim().ToLower();
+                var rootUrl = args[1].Trim();
+                var storageDir = "."; // Always extract data in the current directory
+
                 bool doRestart = false;
                 bool doContinue = false;
                 if(command == "restart")
@@ -78,47 +82,37 @@ namespace nlptextdoc.cli
                 }
                 if(doRestart || doContinue)
                 {
-                    var storageDirForWebsite = args[1].Trim();
                     // Ability to override the previous parameters with new values
                     string[] newParams = null;
                     if (args.Length > 2)
                     {
                         newParams = new string[args.Length - 2];
-                        for(int i = 0; i<(args.Length - 2); i++)
+                        for(int i = 2; i<args.Length; i++)
                         {
-                            newParams[i] = args[i + 2];
+                            newParams[i-2] = args[i];
                         }
                     }
-                    using (var websiteTextExtractor = new WebsiteTextExtractor(storageDirForWebsite, newParams, doContinue))
+                    using (var websiteTextExtractor = new WebsiteTextExtractor(storageDir, rootUrl, newParams, doContinue))
                     {
                         websiteTextExtractor.ExtractNLPTextDocuments();
                     }
                 }
                 else
                 {
-                    if (args.Length < 3)
+                    WebsiteExtractorParams extractorParams = new WebsiteExtractorParams();
+                    extractorParams.ParseParam("scope=" + command);                        
+                    extractorParams.ParseParam("rootUrl=" + rootUrl);
+                    extractorParams.ParseParam("storageDir=" + storageDir);
+
+                    for(int i = 2; i<args.Length; i++)
                     {
-                        PrintUsage();
+                        var keyValueParam = args[i];
+                        extractorParams.ParseParam(keyValueParam);
                     }
-                    else
+
+                    using (var websiteTextExtractor = new WebsiteTextExtractor(extractorParams))
                     {
-                        WebsiteExtractorParams extractorParams = new WebsiteExtractorParams();
-                        extractorParams.ParseParam("scope=" + command);
-                        var rootUrl = args[1].Trim();
-                        extractorParams.ParseParam("rootUrl=" + rootUrl);
-                        var storageDir = args[2].Trim();
-                        extractorParams.ParseParam("storageDir=" + storageDir);
-
-                        for(int i = 3; i<args.Length; i++)
-                        {
-                            var keyValueParam = args[i];
-                            extractorParams.ParseParam(keyValueParam);
-                        }
-
-                        using (var websiteTextExtractor = new WebsiteTextExtractor(extractorParams))
-                        {
-                            websiteTextExtractor.ExtractNLPTextDocuments();
-                        }
+                        websiteTextExtractor.ExtractNLPTextDocuments();
                     }
                 }
             }
