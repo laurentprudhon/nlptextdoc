@@ -1,0 +1,66 @@
+name: Publish nlptextdoc extractor release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  DOTNET_VERSION: '7.0.202' # The .NET SDK version to use
+
+jobs:
+  publish:
+    name: Build and publish new nlptextdoc extractor release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out nlptextdoc repository
+      uses: actions/checkout@v2
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Install nlptextdoc.cli dependencies
+      run: |
+        cd nlptextdoc.cli
+        dotnet restore
+      
+    - name: Build nlptextdoc.cli
+      run: |
+        cd nlptextdoc.cli
+        dotnet build --no-restore -c Release
+              
+    - name: Publish nlptextdoc extractor for all operating systems
+      run: |
+        cd nlptextdoc.cli
+        dotnet publish -c Release -p:PublishProfile=windows
+        dotnet publish -c Release -p:PublishProfile=linux
+        dotnet publish -c Release -p:PublishProfile=macos
+
+    - name: Create a zip archive for Windows
+      uses: thedoctor0/zip-release@master
+      with:
+        type: 'zip'
+        directory: nlptextdoc.cli/bin/Release/net7.0/win-x64/publish/
+        filename: 'nlptextdoc-win-x64.zip'
+
+    - name: Create a tar.gz archive for Linux
+      run: |
+        cd nlptextdoc.cli/bin/Release/net7.0/linux-x64/publish/
+        tar -zcvf nlptextdoc-linux-x64.tar.gz *
+
+    - name: Create a tar.gz archive for macOS
+      run: |
+        cd nlptextdoc.cli/bin/Release/net7.0/osx-x64/publish/
+        tar -zcvf nlptextdoc-osx-x64.tar.gz *
+
+    - name: Create new release
+      uses: marvinpinto/action-automatic-releases@v1.2.1      
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        files: |
+          nlptextdoc.cli/bin/Release/net7.0/win-x64/publish/nlptextdoc-win-x64.zip
+          nlptextdoc.cli/bin/Release/net7.0/linux-x64/publish/nlptextdoc-linux-x64.tar.gz
+          nlptextdoc.cli/bin/Release/net7.0/osx-x64/publish/nlptextdoc-osx-x64.tar.gz
